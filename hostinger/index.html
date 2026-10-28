@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7a0a1b">
+<title>DarahBot · Malaysia Blood Donation Chatbot</title>
+<meta name="description" content="Ask DarahBot about blood donations in Malaysia. Every answer comes from official KKM data. Made by @amirrulmukminin.">
+<style>
+  html, body { margin: 0; height: 100%; background: #FBF6F4; font-family: Inter, system-ui, -apple-system, sans-serif; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  .wait { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; color: #5a3a3e; z-index: -1; }
+  .wait b { display: block; font-size: 22px; color: #b0122a; margin-bottom: 6px; }
+  .wait a { color: #b0122a; }
+</style>
+</head>
+<body>
+  <div class="wait"><b>DarahBot is waking up…</b>DarahBot sedang bangun… <br><br>
+    If nothing appears, <a id="direct" href="#">open DarahBot directly</a>.</div>
+  <!-- CHANGE THIS ONE LINK if your Streamlit app has a different address -->
+  <iframe id="app" title="DarahBot" allow="microphone; clipboard-write; fullscreen"></iframe>
+  <script>
+    var APP = "https://darahbot.streamlit.app";
+    document.getElementById("app").src = APP + "/";
+    document.getElementById("direct").href = APP;
+  </script>
+</body>
+</html>
