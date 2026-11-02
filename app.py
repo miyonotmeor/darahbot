@@ -341,6 +341,15 @@ svg.logo { display:block; filter: drop-shadow(0 8px 14px rgba(176,18,42,.35)); }
 [data-testid="stSidebar"][aria-expanded="false"] { opacity:.0; }
 [data-testid="stSidebarUserContent"] > div > div { animation: fadeup .45s both; }
 div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
+/* ---- every section pops in smoothly when its button is pressed (computer & iPad tabs, phone menu, quiz) ---- */
+@keyframes secin { from { opacity:0; transform: translateY(18px) scale(.985); filter: blur(3px); } to { opacity:1; transform:none; filter:none; } }
+.sec-anim, [class*="st-key-secwrap"] { animation: secin .5s cubic-bezier(.2,.8,.2,1) both; }
+[data-testid="stTab"] { transition: transform .18s ease, background .25s ease, color .25s ease, box-shadow .25s ease !important; }
+[data-testid="stTab"]:active { transform: scale(.94); }
+[data-testid="stTab"][aria-selected="true"] { animation: tabpop .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes tabpop { 0% { transform: scale(.92); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
+.stButton button { transition: transform .15s ease, box-shadow .2s ease, background .2s ease !important; }
+.stButton button:active { transform: scale(.96); }
 /* ---- memory photo ---- */
 .locked { display:flex; gap:12px; align-items:center; background:#fff; border:1px dashed var(--line); border-radius:18px; padding:18px; margin-bottom:12px; font-weight:600; color: var(--ink2); }
 .locked > span { font-size:30px; }
@@ -716,9 +725,13 @@ def show(k):
 @contextmanager
 def section(k):
     if PHONE or QUIZ_MODE:
+        if k != "chat":                 # chat stays top level so the chat box stays pinned at the bottom
+            with st.container(key=f"secwrap_{k}"):
+                yield
+            return
         yield            # top level on phones, so the chat box stays pinned at the bottom
     else:
-        with TABS[k]:
+        with TABS[k], st.container(key=f"secwrap_{k}"):
             yield
 
 # ================================================================ CHAT
