@@ -226,7 +226,6 @@ def _decorate(base, s, panel, name, score, total, winner, present):
     base.alpha_composite(shadow_layer.filter(ImageFilter.GaussianBlur(6 * s)))
     d = ImageDraw.Draw(base)
     d.text((nx, ny), who, fill=(255, 226, 130), font=f)
-    _dashed_box(d, (nx - 26 * s, ny - 4 * s, nx + tw + 26 * s, ny + fsize * 1.18), s)
 
     # tool grid with the stats, overlapping the right edge of the panel
     tiles = [("drop", "DarahBot", ""), ("trophy", sc, "Quiz"), ("star", "Winner" if winner else "Player", ""),
@@ -351,7 +350,6 @@ def make_strip(photos, name="", score=None, total=6, winner=False):
     tw = d.textlength(who, font=f)
     nx = (W - tw) / 2
     d.text((nx, y), who, fill=(255, 226, 130), font=f)
-    _dashed_box(d, (nx - 26, y - 6, nx + tw + 26, y + fs * 1.2), 1.0)
     pill = (f"Quiz {score}/{total}" if score is not None else "DarahBot") + ("  ·  Winner 🏆".replace(" 🏆", "") if winner else "  ·  Thank you!")
     fp = font(40, "semi")
     pwid = d.textlength(pill, font=fp) + 70

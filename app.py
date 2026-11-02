@@ -351,6 +351,10 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 .stButton button { transition: transform .15s ease, box-shadow .2s ease, background .2s ease !important; }
 .stButton button:active { transform: scale(.96); }
 /* ---- memory photo ---- */
+[class*="st-key-memprev"] { align-items:center; }
+[class*="st-key-memprev"] [data-testid="stImage"], [class*="st-key-memprev"] [data-testid="stElementContainer"]:has([data-testid="stImage"]) { margin: 0 auto; }
+[class*="st-key-memprev"] img { border-radius:14px; box-shadow: 0 16px 34px -18px rgba(92,7,20,.6); }
+[class*="st-key-memprev"] .stDownloadButton { width: min(100%, 560px); margin: 0 auto; }
 .locked { display:flex; gap:12px; align-items:center; background:#fff; border:1px dashed var(--line); border-radius:18px; padding:18px; margin-bottom:12px; font-weight:600; color: var(--ink2); }
 .locked > span { font-size:30px; }
 .cam-tip { background:#FFF0F1; color: var(--blood); border-radius:14px; padding:10px 14px; font-size:14px; margin-bottom:10px; }
@@ -1288,8 +1292,8 @@ def camera_script():
     """Turns the photo boxes into camera buttons (see camera.js): the phone/iPad Camera app opens directly,
     computers get a full-screen, full-resolution webcam with a 3-2-1 countdown. No picking files."""
     import json
-    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js3'))return;"
-              "var s=d.createElement('script');s.id='dbcam-js3';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
+    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js4'))return;"
+              "var s=d.createElement('script');s.id='dbcam-js4';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
               ";d.head.appendChild(s);})();</script>", height=1)
 
 
@@ -1299,9 +1303,14 @@ def photo_input(label, key):
 
 
 def show_result(qz, kind, jpg, label):
-    st.image(jpg, width="stretch")
-    st.download_button(f"⬇️ Download · Muat turun ({label})", jpg, mime="image/jpeg", type="primary", width="stretch",
-                       file_name=f"DarahBot_{(qz.get('name') or 'memory').replace(' ', '_')}_{kind}.jpg", key=f"dl_{kind}_{qz['mid']}")
+    """A smaller, centred preview (the download is still the full-size photo)."""
+    from PIL import Image as _I
+    w, h = _I.open(io.BytesIO(jpg)).size
+    width = 280 if h > w * 1.3 else 560                 # the tall photo-booth strip gets a narrow preview
+    with st.container(key=f"memprev_{kind}"):
+        st.image(jpg, width=width)
+        st.download_button(f"⬇️ Download · Muat turun ({label})", jpg, mime="image/jpeg", type="primary", width="stretch",
+                           file_name=f"DarahBot_{(qz.get('name') or 'memory').replace(' ', '_')}_{kind}.jpg", key=f"dl_{kind}_{qz['mid']}")
 
 
 def memory_flow(qz):
@@ -1395,6 +1404,9 @@ if show("quiz"):
 <div><b>{len(QS)}</b><span>{B("question bank", "bank soalan")}</span></div></div>''', unsafe_allow_html=True)
             name = st.text_input("Your name · Nama anda", max_chars=24, placeholder="e.g. Aina", key="quiz_name")
             if st.button("Start the quiz · Mula kuiz", type="primary", width="stretch"):
+                if len(name.strip()) < 2:
+                    st.error("Please type your name first. It goes on your photo! · Sila taip nama anda dahulu. Nama ini akan ada pada gambar anda!")
+                    st.stop()
                 st.session_state.qz = {"stage": "q", "ids": get_pool().draw(QUIZ_N), "i": 0, "res": [], "name": name.strip(),
                                        "checked": None}
                 st.rerun()
@@ -1419,7 +1431,9 @@ if show("quiz"):
                 if q["hint"]:
                     with st.expander("💡 Hint · Petunjuk"):
                         st.write(f"{q['hint']}  \n_{q['hint_ms']}_")
-                if sent:
+                if sent and not (ans or "").strip():
+                    st.warning("Please type an answer first, even a guess. · Sila taip jawapan dahulu, teka pun boleh.")
+                elif sent:
                     res, msg = quiz.check(ans, q, data["states"])
                     qz["res"].append((ans, res))
                     qz["checked"] = (ans, res, msg)

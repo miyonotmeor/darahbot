@@ -5,10 +5,10 @@
 // PHOTO BOOTH (4 photos)
 //  * every device: full-screen camera, a warning first, then ONE press starts the timer and
 //    4 photos are taken in a row (3 seconds before each), without closing the camera.
-// Photos are saved the right way round (NOT mirrored), even though the preview is mirrored like a mirror.
+// Nothing is mirrored: the live preview, the thumbnails and the saved photos all look exactly the same.
 (function () {
-  if (window.__dbCam3) return;
-  window.__dbCam3 = true;
+  if (window.__dbCam4) return;
+  window.__dbCam4 = true;
   const SEL = '[class*="st-key-cam"]';
   const touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
   const isBooth = function (box) { return /st-key-cambooth/.test(box.className); };
@@ -79,7 +79,7 @@
       stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: v });
       video.srcObject = stream;
       await video.play();
-      video.classList.toggle('mirror', !touch || facing === 'user');      // preview only, like a mirror
+      video.classList.remove('mirror');   // no mirroring anywhere: what you see is exactly what you get
       if (touch) {
         stage.classList.remove('land');
         stage.style.aspectRatio = video.videoWidth + '/' + video.videoHeight;
