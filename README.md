@@ -86,7 +86,7 @@ No AI model runs inside the app. Every number comes from a pandas calculation.
 - **Two styles:**
   - one photo in the landscape DarahBot frame (computers always shoot landscape; phones and iPads can shoot either way, nothing is cropped);
   - **photo booth**: one press takes 4 photos in a row (3-second timer before each, a warning first), made into a classic red photo-booth strip.
-- Nothing is mirrored: the live preview and the saved photo look exactly the same. The frame shows the name, score, DarahBot title and logo.
+- Front camera / webcam photos are mirrored like a mirror, both on screen and in the saved photo, so the result looks exactly like what you saw. The frame shows the name, score, DarahBot title and logo.
 - **Winners** take one more photo holding their present.
 - **QR code download:** photos are saved on dermadarah.jomana.my (`memory.php`), so the visitor scans the QR and saves them on their own phone. The Download button works too.
 

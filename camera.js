@@ -5,10 +5,11 @@
 // PHOTO BOOTH (4 photos)
 //  * every device: full-screen camera, a warning first, then ONE press starts the timer and
 //    4 photos are taken in a row (3 seconds before each), without closing the camera.
-// Nothing is mirrored: the live preview, the thumbnails and the saved photos all look exactly the same.
+// Front camera / webcam is MIRRORED like a mirror, and the saved photo is mirrored the same way,
+// so the photo looks exactly like what you saw on screen (back camera: not mirrored).
 (function () {
-  if (window.__dbCam4) return;
-  window.__dbCam4 = true;
+  if (window.__dbCam5) return;
+  window.__dbCam5 = true;
   const SEL = '[class*="st-key-cam"]';
   const touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
   const isBooth = function (box) { return /st-key-cambooth/.test(box.className); };
@@ -54,6 +55,8 @@
   document.head.appendChild(css);
 
   let stream = null, facing = 'user', devices = [], devIdx = 0;
+  // front camera / laptop webcam: mirrored like a mirror, and the SAVED photo is mirrored the same way
+  const mirrored = function () { return !touch || facing === 'user'; };
   const sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   function stop() { if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; } }
   function close() { stop(); const o = document.getElementById('dbcam'); if (o) o.remove(); }
@@ -79,7 +82,7 @@
       stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: v });
       video.srcObject = stream;
       await video.play();
-      video.classList.remove('mirror');   // no mirroring anywhere: what you see is exactly what you get
+      video.classList.toggle('mirror', mirrored());   // selfie view, like a mirror
       if (touch) {
         stage.classList.remove('land');
         stage.style.aspectRatio = video.videoWidth + '/' + video.videoHeight;
@@ -94,7 +97,7 @@
     }
   }
 
-  // one frame from the camera: NOT mirrored; on computers always cut to 16:9 landscape
+  // one frame from the camera, mirrored like the preview; on computers always cut to 16:9 landscape
   function grab(video) {
     let sw = video.videoWidth, sh = video.videoHeight, sx = 0, sy = 0;
     if (!touch && sw / sh < 16 / 9 - 0.01) {           // e.g. an iPhone held upright as the Mac's camera
@@ -103,7 +106,9 @@
     }
     const c = document.createElement('canvas');
     c.width = sw; c.height = sh;
-    c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+    const g = c.getContext('2d');
+    if (mirrored()) { g.translate(sw, 0); g.scale(-1, 1); }   // keep it exactly as seen on screen
+    g.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
     return c;
   }
   const toBlob = function (c) { return new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.93); }); };
