@@ -1329,6 +1329,22 @@ def quiz_reset():
     st.session_state.qz = {"stage": "start"}
 
 
+@st.fragment(run_every=4)
+def wait_for_survey():
+    """Checks every few seconds whether this email has finished the survey, then unlocks the quiz."""
+    em_wait = st.session_state.get("reg_new")
+    if not em_wait or st.session_state.get("reg"):
+        return
+    found = check_email(em_wait)
+    if found and found.get("registered"):
+        st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or ""}
+        st.session_state.quiz_name = short_name(found.get("name") or "")
+        st.session_state.pop("reg_new", None)
+        st.rerun(scope="app")
+    st.markdown(f'<div class="reg-wait"><i></i>{B("Waiting for your survey… this page updates by itself.", "Menunggu tinjauan anda… halaman ini dikemas kini sendiri.")}</div>',
+                unsafe_allow_html=True)
+
+
 def next_person():
     """Clear everything from the last visitor so the iPad is ready for the next one."""
     st.session_state.person = st.session_state.get("person", 0) + 1
@@ -1495,13 +1511,15 @@ if show("quiz"):
                     em = (em or "").strip().lower()
                     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", em):
                         st.error("Please type a valid email, e.g. aina@gmail.com · Sila taip e-mel yang betul.")
-                        st.stop()
-                    found = check_email(em)
-                    if found and found.get("registered"):
-                        st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or "", "back": True}
-                        st.session_state.quiz_name = short_name(found.get("name") or "")
-                        st.rerun()
-                    st.session_state.reg_new = em
+                        st.session_state.pop("reg_new", None)
+                    else:
+                        found = check_email(em)
+                        if found and found.get("registered"):
+                            st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or "", "back": True}
+                            st.session_state.quiz_name = short_name(found.get("name") or "")
+                            st.session_state.pop("reg_new", None)
+                            st.rerun()
+                        st.session_state.reg_new = em
                 if st.session_state.get("reg_new"):
                     from urllib.parse import urlencode
                     link = SURVEY_URL.rstrip("/") + "/?" + urlencode({"from": "darahbot", "email": st.session_state.reg_new})
@@ -1510,36 +1528,20 @@ if show("quiz"):
 <p>{B("Your answers help our CSC649 project. Your email is already filled in. When you finish, you come straight back here.", "Jawapan anda membantu projek CSC649 kami. E-mel anda sudah diisi. Selepas selesai, anda terus kembali ke sini.")}</p></div></div>
 <a class="reg-btn" href="{html.escape(link)}" target="_blank" rel="opener">📝 {B("Answer the survey", "Jawab tinjauan")}</a>
 <small>{B("The survey opens in a new tab. When you finish, it closes and this page unlocks the quiz by itself.", "Tinjauan dibuka dalam tab baru. Selepas selesai, tab itu ditutup dan halaman ini membuka kuiz dengan sendirinya.")}</small></div>''', unsafe_allow_html=True)
-
-                @st.fragment(run_every=4)
-                def wait_for_survey():
-                    """Checks every few seconds whether this email has finished the survey, then unlocks the quiz."""
-                    em_wait = st.session_state.get("reg_new")
-                    if not em_wait or st.session_state.get("reg"):
-                        st.rerun()           # already registered or the visitor moved on: stop waiting (full refresh removes this timer)
-                    found = check_email(em_wait)
-                    if found and found.get("registered"):
-                        st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or ""}
-                        st.session_state.quiz_name = short_name(found.get("name") or "")
-                        st.session_state.pop("reg_new", None)
+                    wait_for_survey()
+            else:
+                st.markdown(f'<div class="reg-ok">✅ {B("Welcome back! You answered our survey before, so you can play." if reg.get("back") else "Registered! Thank you for answering our survey.", "Selamat kembali! Anda sudah menjawab tinjauan kami, jadi anda boleh bermain." if reg.get("back") else "Berdaftar! Terima kasih kerana menjawab tinjauan kami.")}</div>',
+                            unsafe_allow_html=True)
+                name = st.text_input("Name on your photo · Nama pada gambar anda", max_chars=24, key="quiz_name")
+                if st.button("Start the quiz · Mula kuiz", type="primary", width="stretch"):
+                    if len(name.strip()) < 2:
+                        st.error("Please type your name first. It goes on your photo! · Sila taip nama anda dahulu. Nama ini akan ada pada gambar anda!")
+                    else:
+                        st.session_state.qz = {"stage": "q", "ids": get_pool().draw(QUIZ_N), "i": 0, "res": [], "name": name.strip(),
+                                               "checked": None}
                         st.rerun()
-                    st.markdown(f'<div class="reg-wait"><i></i>{B("Waiting for your survey… this page updates by itself.", "Menunggu tinjauan anda… halaman ini dikemas kini sendiri.")}</div>',
-                                unsafe_allow_html=True)
-
-                wait_for_survey()
-                st.stop()
-            st.markdown(f'<div class="reg-ok">✅ {B("Welcome back! You answered our survey before, so you can play." if reg.get("back") else "Registered! Thank you for answering our survey.", "Selamat kembali! Anda sudah menjawab tinjauan kami, jadi anda boleh bermain." if reg.get("back") else "Berdaftar! Terima kasih kerana menjawab tinjauan kami.")}</div>',
-                        unsafe_allow_html=True)
-            name = st.text_input("Name on your photo · Nama pada gambar anda", max_chars=24, key="quiz_name")
-            if st.button("Start the quiz · Mula kuiz", type="primary", width="stretch"):
-                if len(name.strip()) < 2:
-                    st.error("Please type your name first. It goes on your photo! · Sila taip nama anda dahulu. Nama ini akan ada pada gambar anda!")
-                    st.stop()
-                st.session_state.qz = {"stage": "q", "ids": get_pool().draw(QUIZ_N), "i": 0, "res": [], "name": name.strip(),
-                                       "checked": None}
-                st.rerun()
-            st.caption(f"Questions are picked at random and not repeated for the next person "
-                       f"({get_pool().remaining()} fresh questions left in this round).")
+                st.caption(f"Questions are picked at random and not repeated for the next person "
+                           f"({get_pool().remaining()} fresh questions left in this round).")
 
         elif qz["stage"] == "q":
             q = QS[qz["ids"][qz["i"]]]
