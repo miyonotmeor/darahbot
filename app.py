@@ -1292,8 +1292,8 @@ def camera_script():
     """Turns the photo boxes into camera buttons (see camera.js): the phone/iPad Camera app opens directly,
     computers get a full-screen, full-resolution webcam with a 3-2-1 countdown. No picking files."""
     import json
-    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js5'))return;"
-              "var s=d.createElement('script');s.id='dbcam-js5';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
+    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js6'))return;"
+              "var s=d.createElement('script');s.id='dbcam-js6';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
               ";d.head.appendChild(s);})();</script>", height=1)
 
 

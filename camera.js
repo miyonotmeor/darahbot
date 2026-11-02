@@ -1,27 +1,26 @@
 // DarahBot photo booth camera (v3)
-// ONE PHOTO
-//  * phone / iPad / Android: the device's own Camera app opens straight away (portrait or landscape, as held)
-//  * laptop / desktop: full-screen webcam, always LANDSCAPE, 3-2-1 countdown
+// ONE PHOTO (every device): the DarahBot full-screen camera with a 3-2-1 countdown
+//  * laptop / desktop: always LANDSCAPE
+//  * phone / iPad: follows how the device is held
 // PHOTO BOOTH (4 photos)
 //  * every device: full-screen camera, a warning first, then ONE press starts the timer and
 //    4 photos are taken in a row (3 seconds before each), without closing the camera.
 // Front camera / webcam is MIRRORED like a mirror, and the saved photo is mirrored the same way,
 // so the photo looks exactly like what you saw on screen (back camera: not mirrored).
 (function () {
-  if (window.__dbCam5) return;
-  window.__dbCam5 = true;
+  if (window.__dbCam6) return;
+  window.__dbCam6 = true;
   const SEL = '[class*="st-key-cam"]';
   const touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
   const isBooth = function (box) { return /st-key-cambooth/.test(box.className); };
 
-  // 1) single-photo boxes on phones/iPads open the Camera app directly
+  // 1) camera boxes accept images only (every device now uses the DarahBot camera screen below)
   function prep() {
     document.querySelectorAll(SEL).forEach(function (box) {
       const inp = box.querySelector('input[type=file]');
       if (!inp || inp.dataset.dbcam) return;
       inp.dataset.dbcam = '1';
       inp.setAttribute('accept', 'image/*');
-      if (touch && !isBooth(box)) inp.setAttribute('capture', 'user');
     });
   }
   new MutationObserver(prep).observe(document.body, { childList: true, subtree: true });
@@ -216,7 +215,6 @@
     if (!box || e.target.closest('[data-testid="stFileChipDeleteBtn"]')) return;
     if (!e.target.closest('[data-testid="stFileUploaderDropzone"], [data-testid="stFileUploader"] button, [data-testid="stFileUploader"] section')) return;
     const booth = isBooth(box);
-    if (touch && !booth) return;                      // phones/iPads: native Camera app
     const inp = box.querySelector('input[type=file]');
     if (!inp) return;
     e.preventDefault(); e.stopPropagation();
