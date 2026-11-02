@@ -1514,7 +1514,10 @@ if show("quiz"):
                 @st.fragment(run_every=4)
                 def wait_for_survey():
                     """Checks every few seconds whether this email has finished the survey, then unlocks the quiz."""
-                    found = check_email(st.session_state.reg_new)
+                    em_wait = st.session_state.get("reg_new")
+                    if not em_wait or st.session_state.get("reg"):
+                        st.rerun()           # already registered or the visitor moved on: stop waiting (full refresh removes this timer)
+                    found = check_email(em_wait)
                     if found and found.get("registered"):
                         st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or ""}
                         st.session_state.quiz_name = short_name(found.get("name") or "")
