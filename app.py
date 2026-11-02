@@ -350,6 +350,18 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes tabpop { 0% { transform: scale(.92); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
 .stButton button { transition: transform .15s ease, box-shadow .2s ease, background .2s ease !important; }
 .stButton button:active { transform: scale(.96); }
+/* ---- quiz registration ---- */
+.reg-card { display:grid; gap:14px; background:#fff; border:1px solid var(--line); border-radius:22px; padding:20px; margin:6px 0 12px;
+  box-shadow:0 18px 40px -26px rgba(92,7,20,.6); animation: fadeup .5s both; }
+.reg-step.top { margin: 4px 0 6px; }
+.reg-step { display:flex; gap:12px; align-items:flex-start; } .reg-step.dim { opacity:.55; }
+.reg-step i { flex:none; width:34px; height:34px; border-radius:50%; background: var(--blood); color:#fff; display:grid; place-items:center; font: 800 16px var(--display); font-style:normal; }
+.reg-step b { font-size:17px; color: var(--ink); } .reg-step p { margin:4px 0 0; color: var(--ink2); font-size:14px; }
+a.reg-btn { display:block; text-align:center; text-decoration:none !important; color:#fff !important; font: 800 19px var(--display);
+  background: linear-gradient(180deg,#E8283F,#B0122A); border-radius:18px; padding:18px; box-shadow:0 14px 28px -14px rgba(176,18,42,.9);
+  animation: glowq 2.4s ease-in-out infinite; } a.reg-btn .ms { color: rgba(255,255,255,.85) !important; font: 600 13px var(--body); }
+.reg-card small { color: var(--muted); text-align:center; }
+.reg-ok { background:#E6F5EE; border:1px solid #BFE3D1; color:#1D6B49; font-weight:700; border-radius:14px; padding:12px 16px; margin-bottom:10px; }
 /* ---- memory photo ---- */
 [class*="st-key-memprev"] { align-items:center; }
 [class*="st-key-memprev"] [data-testid="stImage"], [class*="st-key-memprev"] [data-testid="stElementContainer"]:has([data-testid="stImage"]) { margin: 0 auto; }
@@ -475,6 +487,65 @@ if st.session_state.get("go"):
     else:
         st.session_state.tab = LABEL[_go]
 NAV = KEY_OF.get(st.session_state.get("nav", LABEL["chat"]), "chat")
+
+
+# ---------------------------------------------------------------- quiz registration (via our survey)
+# The survey site sends people back here with a signed ticket: ?quiz=1&rid=..&n=..&t=..&sig=..
+@st.cache_resource
+def used_tickets():
+    return set()
+
+
+def short_name(full):
+    """'Muhammad Amirrul Mukminin bin Reduaan' -> 'Muhammad Amirrul' (the name printed on the photo)."""
+    words = []
+    for w in str(full).split():
+        if w.lower().strip(".") in ("bin", "binti", "bt", "bte", "b", "a/l", "a/p", "al", "ap"):
+            break
+        words.append(w.capitalize() if w.isupper() or w.islower() else w)
+    out = " ".join(words[:2]) or str(full).strip()
+    return out[:24]
+
+
+def check_email(email):
+    """Ask the survey site whether this email has answered before (protected by the secret key)."""
+    import requests
+    from urllib.parse import parse_qs, urlparse
+    key = (parse_qs(urlparse(SURVEY_CSV_URL).query).get("key") or [""])[0]
+    if not key:
+        return None
+    try:
+        r = requests.post(SURVEY_URL.rstrip("/") + "/check.php", json={"key": key, "email": email}, timeout=10)
+        return r.json() if r.ok else None
+    except Exception:
+        return None
+
+
+def read_ticket():
+    import hashlib
+    import hmac
+    from urllib.parse import parse_qs, urlparse
+    qp = st.query_params
+    if qp.get("quiz") != "1":
+        return
+    sig, rid, n, t = qp.get("sig"), qp.get("rid"), qp.get("n", ""), qp.get("t", "0")
+    st.session_state.quiz_open = True
+    st.session_state.tour_done = True          # coming back from the survey: go straight to the quiz, no tutorial
+    if sig:
+        key = (parse_qs(urlparse(SURVEY_CSV_URL).query).get("key") or [""])[0]
+        good = hmac.new(key.encode(), f"{rid}|{n}|{t}".encode(), hashlib.sha256).hexdigest()[:24]
+        fresh = t.isdigit() and abs(time.time() - int(t)) < 3 * 3600
+        if key and hmac.compare_digest(good, sig) and fresh and sig not in used_tickets():
+            used_tickets().add(sig)
+            st.session_state.reg = {"rid": rid, "full": n}
+            st.session_state.quiz_name = short_name(n)
+            st.session_state.qz = {"stage": "start"}
+        else:
+            st.session_state.reg_error = True
+    st.query_params.clear()
+
+
+read_ticket()
 QUIZ_MODE = bool(st.session_state.get("quiz_open"))
 
 
@@ -1258,7 +1329,7 @@ def next_person():
     """Clear everything from the last visitor so the iPad is ready for the next one."""
     st.session_state.person = st.session_state.get("person", 0) + 1
     quiz_reset()
-    for k in ("quiz_name",):
+    for k in ("quiz_name", "reg", "reg_new", "reg_email_in"):   # the next visitor must register too
         st.session_state.pop(k, None)
     st.rerun()
 
@@ -1402,7 +1473,43 @@ if show("quiz"):
 <div><b>{QUIZ_N}</b><span>{B("questions", "soalan")}</span></div>
 <div><b>{PRIZE_AT}+</b><span>{B("to win", "untuk menang")}</span></div>
 <div><b>{len(QS)}</b><span>{B("question bank", "bank soalan")}</span></div></div>''', unsafe_allow_html=True)
-            name = st.text_input("Your name · Nama anda", max_chars=24, placeholder="e.g. Aina", key="quiz_name")
+            reg = st.session_state.get("reg")
+            if not reg:
+                # step 1: type your email. Already answered our survey -> straight to the quiz.
+                #         New email -> answer the survey first (it sends you straight back here).
+                if st.session_state.pop("reg_error", False):
+                    st.warning("That registration link has expired or was already used. Please register again. · "
+                               "Pautan pendaftaran sudah tamat atau telah digunakan. Sila daftar semula.")
+                st.markdown(f'''<div class="reg-step top"><i>1</i><div><b>{B("Register with your email", "Daftar dengan e-mel anda")}</b>
+<p>{B("Answered our survey before? You go straight to the quiz. New here? Answer our 2-minute survey first and you will come straight back.",
+      "Pernah jawab tinjauan kami? Terus ke kuiz. Baru? Jawab tinjauan 2 minit kami dahulu dan anda akan terus kembali ke sini.")}</p></div></div>''',
+                            unsafe_allow_html=True)
+                with st.form("reg_form", border=False):
+                    em = st.text_input("Your email · E-mel anda", placeholder="e.g. aina@gmail.com", key="reg_email_in")
+                    go = st.form_submit_button("Continue · Teruskan", type="primary", width="stretch")
+                if go:
+                    em = (em or "").strip().lower()
+                    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", em):
+                        st.error("Please type a valid email, e.g. aina@gmail.com · Sila taip e-mel yang betul.")
+                        st.stop()
+                    found = check_email(em)
+                    if found and found.get("registered"):
+                        st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or "", "back": True}
+                        st.session_state.quiz_name = short_name(found.get("name") or "")
+                        st.rerun()
+                    st.session_state.reg_new = em
+                if st.session_state.get("reg_new"):
+                    from urllib.parse import urlencode
+                    link = SURVEY_URL.rstrip("/") + "/?" + urlencode({"from": "darahbot", "email": st.session_state.reg_new})
+                    st.markdown(f'''<div class="reg-card">
+<div class="reg-step"><i>2</i><div><b>{B("New email: please answer our 2-minute survey", "E-mel baru: sila jawab tinjauan 2 minit kami")}</b>
+<p>{B("Your answers help our CSC649 project. Your email is already filled in. When you finish, you come straight back here.", "Jawapan anda membantu projek CSC649 kami. E-mel anda sudah diisi. Selepas selesai, anda terus kembali ke sini.")}</p></div></div>
+<a class="reg-btn" href="{html.escape(link)}" target="_top">📝 {B("Answer the survey", "Jawab tinjauan")}</a>
+<small>{B("Did not open?", "Tidak terbuka?")} <a href="{html.escape(link)}" target="_blank">{B("Tap here", "Tekan di sini")}</a></small></div>''', unsafe_allow_html=True)
+                st.stop()
+            st.markdown(f'<div class="reg-ok">✅ {B("Welcome back! You answered our survey before, so you can play." if reg.get("back") else "Registered! Thank you for answering our survey.", "Selamat kembali! Anda sudah menjawab tinjauan kami, jadi anda boleh bermain." if reg.get("back") else "Berdaftar! Terima kasih kerana menjawab tinjauan kami.")}</div>',
+                        unsafe_allow_html=True)
+            name = st.text_input("Name on your photo · Nama pada gambar anda", max_chars=24, key="quiz_name")
             if st.button("Start the quiz · Mula kuiz", type="primary", width="stretch"):
                 if len(name.strip()) < 2:
                     st.error("Please type your name first. It goes on your photo! · Sila taip nama anda dahulu. Nama ini akan ada pada gambar anda!")

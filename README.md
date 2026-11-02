@@ -67,6 +67,14 @@ visitor message → detect_intent() → find_states() / find_years() / find_metr
 
 No AI model runs inside the app. Every number comes from a pandas calculation.
 
+## Quiz registration through our survey
+- Before the quiz, each visitor types their **email**. DarahBot asks the survey site (`check.php`, protected by the secret key) whether that email has answered before.
+  - Already answered: registered straight away, with the name from the survey.
+  - New email: **Answer the survey** opens dermadarah.jomana.my in the same tab, with the email already filled in.
+- When they finish, the survey page sends them straight back to the DarahBot quiz, with **Start** unlocked and their name filled in from the survey.
+- The return link is signed with the same secret key as the survey export, expires after 3 hours, and works only once, so nobody can skip the survey.
+- Someone who already answered before (same email) is still registered. **Next person** clears the registration for the next visitor.
+
 ## Quiz & photo booth (latest)
 - The **🎯 Guess** game was removed (the quiz already does this job).
 - **🏆 Quiz, prize & photo booth** is a button in the side panel, under *Clear chat*, on phones, iPads and computers. It opens the quiz as its own page with a *Back to DarahBot* button.
