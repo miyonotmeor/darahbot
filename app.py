@@ -361,6 +361,10 @@ a.reg-btn { display:block; text-align:center; text-decoration:none !important; c
   background: linear-gradient(180deg,#E8283F,#B0122A); border-radius:18px; padding:18px; box-shadow:0 14px 28px -14px rgba(176,18,42,.9);
   animation: glowq 2.4s ease-in-out infinite; } a.reg-btn .ms { color: rgba(255,255,255,.85) !important; font: 600 13px var(--body); }
 .reg-card small { color: var(--muted); text-align:center; }
+.reg-wait { display:flex; gap:10px; align-items:center; justify-content:center; color: var(--ink2); font-size:14px; margin-top:4px; }
+.reg-wait .ms { display:inline; margin-left:6px; }
+.reg-wait i { width:12px; height:12px; border-radius:50%; background: var(--blood); animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform: scale(.7); opacity:.5; } 50% { transform: scale(1.15); opacity:1; } }
 .reg-ok { background:#E6F5EE; border:1px solid #BFE3D1; color:#1D6B49; font-weight:700; border-radius:14px; padding:12px 16px; margin-bottom:10px; }
 /* ---- memory photo ---- */
 [class*="st-key-memprev"] { align-items:center; }
@@ -1504,8 +1508,22 @@ if show("quiz"):
                     st.markdown(f'''<div class="reg-card">
 <div class="reg-step"><i>2</i><div><b>{B("New email: please answer our 2-minute survey", "E-mel baru: sila jawab tinjauan 2 minit kami")}</b>
 <p>{B("Your answers help our CSC649 project. Your email is already filled in. When you finish, you come straight back here.", "Jawapan anda membantu projek CSC649 kami. E-mel anda sudah diisi. Selepas selesai, anda terus kembali ke sini.")}</p></div></div>
-<a class="reg-btn" href="{html.escape(link)}" target="_top">📝 {B("Answer the survey", "Jawab tinjauan")}</a>
-<small>{B("Did not open?", "Tidak terbuka?")} <a href="{html.escape(link)}" target="_blank">{B("Tap here", "Tekan di sini")}</a></small></div>''', unsafe_allow_html=True)
+<a class="reg-btn" href="{html.escape(link)}" target="_blank" rel="opener">📝 {B("Answer the survey", "Jawab tinjauan")}</a>
+<small>{B("The survey opens in a new tab. When you finish, it closes and this page unlocks the quiz by itself.", "Tinjauan dibuka dalam tab baru. Selepas selesai, tab itu ditutup dan halaman ini membuka kuiz dengan sendirinya.")}</small></div>''', unsafe_allow_html=True)
+
+                @st.fragment(run_every=4)
+                def wait_for_survey():
+                    """Checks every few seconds whether this email has finished the survey, then unlocks the quiz."""
+                    found = check_email(st.session_state.reg_new)
+                    if found and found.get("registered"):
+                        st.session_state.reg = {"rid": str(found.get("rid")), "full": found.get("name") or ""}
+                        st.session_state.quiz_name = short_name(found.get("name") or "")
+                        st.session_state.pop("reg_new", None)
+                        st.rerun()
+                    st.markdown(f'<div class="reg-wait"><i></i>{B("Waiting for your survey… this page updates by itself.", "Menunggu tinjauan anda… halaman ini dikemas kini sendiri.")}</div>',
+                                unsafe_allow_html=True)
+
+                wait_for_survey()
                 st.stop()
             st.markdown(f'<div class="reg-ok">✅ {B("Welcome back! You answered our survey before, so you can play." if reg.get("back") else "Registered! Thank you for answering our survey.", "Selamat kembali! Anda sudah menjawab tinjauan kami, jadi anda boleh bermain." if reg.get("back") else "Berdaftar! Terima kasih kerana menjawab tinjauan kami.")}</div>',
                         unsafe_allow_html=True)
