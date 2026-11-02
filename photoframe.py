@@ -30,6 +30,13 @@ def font(size, weight="regular"):
             return ImageFont.load_default()
 
 
+try:                                   # iPhone photos can be HEIC
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except Exception:
+    pass
+
+
 def load_photo(photo_bytes, max_side=2400):
     """Open the camera photo the right way up (iPhone/iPad photos store rotation separately)."""
     im = ImageOps.exif_transpose(Image.open(io.BytesIO(photo_bytes))).convert("RGB")

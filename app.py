@@ -348,6 +348,27 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 .present-box, .qr-box { background: linear-gradient(160deg,#A3122A,#5C0714); color:#fff; border-radius:18px; padding:16px 18px; margin:14px 0 10px; animation: fadeup .5s both; }
 .present-box p, .qr-box p { margin:6px 0 0; opacity:.85; } .present-box .ms, .qr-box .ms { color: rgba(255,255,255,.8) !important; }
 [data-testid="stFileUploaderDropzone"] { border-radius:16px; border: 2px dashed #E9B9C0; background:#fff; }
+/* photo boxes look like big camera buttons */
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] { background: linear-gradient(180deg,#E8283F,#B0122A); border:0; border-radius:18px;
+  min-height:96px; justify-content:center; cursor:pointer; box-shadow:0 14px 28px -14px rgba(176,18,42,.9); transition: transform .15s; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:active { transform: scale(.97); }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzoneInstructions"] { display:none; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button { background:transparent !important; border:0 !important; color:transparent !important; width:100%; min-height:70px; position:relative; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button::after { content:"📷  Open camera · Buka kamera"; position:absolute; inset:0; display:grid; place-items:center;
+  color:#fff; font: 800 19px var(--display); }
+/* after the photo is taken: no file name, just a "Retake" button (the framed photo shows below) */
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) { min-height:58px; }
+[class*="st-key-cam"] [data-testid="stFileChip"] { display:none !important; }
+[class*="st-key-cam"] [data-testid="stFileChips"] { width:100%; display:block; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] { position:relative; }
+[class*="st-key-cam"] [data-testid="stFileChips"] button { position:static !important; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button { min-height:46px; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button::after { content:"↺  Retake · Ambil semula"; font-size:16px; }
+/* the quiz button in the side panel stands out */
+.st-key-side_quiz button { background:#fff !important; color: var(--blood) !important; border:0 !important; font-weight:800 !important;
+  box-shadow: 0 10px 24px -10px rgba(0,0,0,.45); animation: glowq 2.4s ease-in-out infinite; }
+.st-key-side_quiz button p { color: var(--blood) !important; font-weight:800 !important; }
+@keyframes glowq { 50% { box-shadow: 0 0 0 6px rgba(255,255,255,.18), 0 10px 24px -10px rgba(0,0,0,.45); } }
 /* bigger, clearer menu button on phones */
 @media (max-width: 760px) {
   [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"] button {
@@ -423,9 +444,9 @@ if "phone_view" not in st.session_state:
     st.session_state.phone_view = looks_like_phone()
 PHONE = st.session_state.phone_view
 
-SECTIONS = [("chat", "💬 Ask DarahBot"), ("elig", "✅ Can I donate?"), ("quiz", "🏆 Quiz & prize"), ("photo", "📸 Photo booth"),
+SECTIONS = [("chat", "💬 Ask DarahBot"), ("elig", "✅ Can I donate?"),
             ("survey", "📋 Our survey"), ("type", "🩸 My blood type"), ("map", "🗺️ State map"), ("hosp", "🏥 Hospitals"),
-            ("cal", "📅 Calendar"), ("time", "⏳ Time machine"), ("story", "📉 Gen Z story"), ("game", "🎯 Guess"),
+            ("cal", "📅 Calendar"), ("time", "⏳ Time machine"), ("story", "📉 Gen Z story"),
             ("show", "📺 Exhibition"), ("about", "📄 About")]
 LABEL = dict(SECTIONS)
 KEY_OF = {lab: k for k, lab in SECTIONS}
@@ -433,11 +454,15 @@ KEY_OF = {lab: k for k, lab in SECTIONS}
 # a button somewhere asked to open another section
 if st.session_state.get("go"):
     _go = st.session_state.pop("go")
-    if PHONE:
+    st.session_state.quiz_open = _go == "quiz"      # the quiz has its own full page (opened from the side panel)
+    if _go == "quiz":
+        pass
+    elif PHONE:
         st.session_state.nav = LABEL[_go]
     else:
         st.session_state.tab = LABEL[_go]
 NAV = KEY_OF.get(st.session_state.get("nav", LABEL["chat"]), "chat")
+QUIZ_MODE = bool(st.session_state.get("quiz_open"))
 
 
 def go_button(k, label=None, key=None, primary=False):
@@ -451,9 +476,9 @@ def go_button(k, label=None, key=None, primary=False):
 def tour_steps():
     menu_en = ("Tap the red ☰ Menu (top left) to slide the side panel open: example questions, language and every feature. "
                "Tap « to hide it again." if PHONE else
-               "Use the tabs to switch features. The red panel on the left has example questions and the language switch; hide it with «.")
+               "Use the tabs to switch features. The red panel on the left has example questions, the language switch and the 🏆 Quiz button; hide it with «.")
     menu_ms = ("Tekan ☰ Menu merah (atas kiri) untuk buka panel sisi: contoh soalan, bahasa dan semua ciri. Tekan « untuk tutup." if PHONE else
-               "Guna tab untuk tukar ciri. Panel merah di kiri ada contoh soalan dan pilihan bahasa; tutup dengan «.")
+               "Guna tab untuk tukar ciri. Panel merah di kiri ada contoh soalan, pilihan bahasa dan butang 🏆 Kuiz; tutup dengan «.")
     return [
         ("Welcome to DarahBot", "Selamat datang ke DarahBot",
          "Malaysia's blood donation chatbot. Ask in English or Bahasa Melayu, and every answer comes from official KKM data, with proof.",
@@ -473,11 +498,11 @@ def tour_steps():
         ("3 · The menu", "Menu",
          menu_en, menu_ms,
          '<div class="tv-phone"><div class="tv-side"><b>☰ Menu</b><span>💬 Ask DarahBot</span><span>✅ Can I donate?</span>'
-         '<span class="on">🏆 Quiz &amp; prize</span><span>💡 Try asking…</span></div>'
+         '<span>💡 Try asking…</span><span class="on">🏆 Quiz &amp; photo</span></div>'
          '<div class="tv-main"><div class="tv-mbtn">☰ Menu</div><div class="tv-line"></div><div class="tv-line s"></div></div></div>'),
         ("4 · Quiz, prize & memory photo", "Kuiz, hadiah & gambar kenangan",
-         "Answer 6 quick questions. Get 5 or more right to win a present! Then take a memory photo with our DarahBot frame and download it with a QR code.",
-         "Jawab 6 soalan ringkas. Betul 5 ke atas untuk hadiah! Kemudian ambil gambar kenangan dengan bingkai DarahBot dan muat turun melalui kod QR.",
+         "Tap 🏆 Quiz in the side panel and answer 6 quick questions. Get 5 or more right to win a present! Then snap a memory photo with the DarahBot frame and download it with a QR code.",
+         "Tekan 🏆 Kuiz di panel sisi dan jawab 6 soalan ringkas. Betul 5 ke atas untuk hadiah! Kemudian ambil gambar kenangan berbingkai DarahBot dan muat turun melalui kod QR.",
          '<div class="tv-quiz"><div class="tv-score">5<small>/6</small></div><div class="tv-prize">🏆</div>'
          '<div class="tv-photo">📸</div></div>'),
     ]
@@ -572,7 +597,7 @@ with st.sidebar:
     if PHONE:
         st.markdown(f'<div class="side-label">{B("Menu", "Menu")}</div>', unsafe_allow_html=True)
         st.radio("Menu", [lab for _, lab in SECTIONS], key="nav", label_visibility="collapsed",
-                 on_change=lambda: st.session_state.update(close_menu=True))
+                 on_change=lambda: st.session_state.update(close_menu=True, quiz_open=False))
     note = (B("The bag is full. Thank you for asking!", "Beg sudah penuh. Terima kasih kerana bertanya!") if fill >= 1
             else B(f"Ask {BAG_GOAL - asked} more question{'s' if BAG_GOAL - asked != 1 else ''} to fill the bag",
                    f"Tanya {BAG_GOAL - asked} soalan lagi untuk mengisi beg"))
@@ -595,12 +620,16 @@ with st.sidebar:
         st.session_state.context = None
         st.session_state.editing = None
         st.rerun()
+    if st.button(T("🏆  Quiz, prize & photo booth", "🏆  Kuiz, hadiah & gambar"), key="side_quiz", type="primary", width="stretch"):
+        st.session_state.quiz_open = True
+        st.session_state.close_menu = True
+        st.rerun()
 
     st.markdown(f'<div class="side-label">{B("Try asking", "Cuba tanya")}</div>', unsafe_allow_html=True)
     for q in EX:
         if st.button(q, key="side_" + q, width="stretch"):
             st.session_state.pending = q
-            if (PHONE and NAV != "chat") or (not PHONE and st.session_state.get("tab", LABEL["chat"]) != LABEL["chat"]):
+            if QUIZ_MODE or (PHONE and NAV != "chat") or (not PHONE and st.session_state.get("tab", LABEL["chat"]) != LABEL["chat"]):
                 st.session_state.go = "chat"
                 st.rerun()
 
@@ -640,7 +669,7 @@ SECS, _ = bot.seconds_per_donation(data)
 ch = (nat_full - nat_prev) / nat_prev * 100
 gz_ch = gz_full - gz_2019
 
-if not PHONE:
+if not PHONE and not QUIZ_MODE:
     st.markdown(f"""
 <section class="hero">
   <span class="hero-tag"><i></i>In {FULL}, someone in Malaysia donated blood every {SECS:.0f} seconds</span>
@@ -659,7 +688,7 @@ if not PHONE:
 FACTS = bot.fun_facts(data, st.session_state.lang)
 if "fact" not in st.session_state:
     st.session_state.fact = random.randrange(len(FACTS))
-if not PHONE:
+if not PHONE and not QUIZ_MODE:
     fc, fb = st.columns([6, 1], vertical_alignment="center")
     fact, fact_ev = FACTS[st.session_state.fact]
     fc.markdown(f'<div class="fact"><span class="ico">💡</span><div><b>{T("Did you know?", "Tahukah anda?")}</b> {md_bold(fact)}'
@@ -670,19 +699,23 @@ if not PHONE:
     st.write("")
 
 TABS = {}
-if not PHONE:
+if not PHONE and not QUIZ_MODE:
     _t = st.tabs([lab for _, lab in SECTIONS], key="tab", on_change="rerun")
     TABS = dict(zip([k for k, _ in SECTIONS], _t))
 
 
 def show(k):
     """Only build the section that is on screen (faster, and the camera only opens when needed)."""
+    if QUIZ_MODE:
+        return k == "quiz"
+    if k == "quiz":
+        return False
     return NAV == k if PHONE else TABS[k].open
 
 
 @contextmanager
 def section(k):
-    if PHONE:
+    if PHONE or QUIZ_MODE:
         yield            # top level on phones, so the chat box stays pinned at the bottom
     else:
         with TABS[k]:
@@ -1235,9 +1268,21 @@ def upload_memory(qz, kind, jpg):
         return False
 
 
+CAMERA_JS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "camera.js"), encoding="utf-8").read()
+
+
+def camera_script():
+    """Turns the photo boxes into camera buttons (see camera.js): the phone/iPad Camera app opens directly,
+    computers get a full-screen, full-resolution webcam with a 3-2-1 countdown. No picking files."""
+    import json
+    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js'))return;"
+              "var s=d.createElement('script');s.id='dbcam-js';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
+              ";d.head.appendChild(s);})();</script>", height=1)
+
+
 def photo_input(label, key):
-    """Opens the device's OWN camera (full quality, its own settings) through the normal photo picker."""
-    return st.file_uploader(label, type=["jpg", "jpeg", "png", "heic", "webp"], key=key)
+    """A camera button. The file comes straight from the camera; the frame is added right after."""
+    return st.file_uploader(label, type=["jpg", "jpeg", "png", "heic", "heif", "webp"], key=key, label_visibility="visible")
 
 
 def show_result(qz, kind, jpg, label):
@@ -1250,10 +1295,11 @@ def memory_flow(qz):
     p = st.session_state.get("person", 0)
     name, score, win = qz.get("name") or "", qz.get("score"), qz.get("win")
     heading("Capture your memory", "Ambil gambar kenangan",
-            "Choose a style, then tap the button: your device's own camera opens (full quality, mirror and settings as usual).",
-            "Pilih gaya, kemudian tekan butang: kamera peranti anda sendiri akan dibuka (kualiti penuh, tetapan biasa).")
-    st.markdown('<div class="cam-tip">📱 On iPad / iPhone: tap <b>Browse files</b> → <b>Take Photo</b>. '
-                '<span class="ms">Di iPad / iPhone: tekan Browse files → Take Photo.</span></div>', unsafe_allow_html=True)
+            "Choose a style, then take your photo with the camera.",
+            "Pilih gaya, kemudian ambil gambar dengan kamera.")
+    camera_script()
+    st.markdown('<div class="cam-tip">📷 Tap the camera button: your camera opens. Snap your photo and the DarahBot frame is added straight away. '
+                '<span class="ms">Tekan butang kamera: kamera akan dibuka. Ambil gambar dan bingkai DarahBot terus ditambah.</span></div>', unsafe_allow_html=True)
     mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo strip (4 photos) · Jalur 4 gambar"],
                     key=f"mode_{p}", horizontal=True)
     imgs = qz.setdefault("imgs", {})
@@ -1317,6 +1363,9 @@ def memory_flow(qz):
 
 if show("quiz"):
     with section("quiz"):
+        if st.button(T("←  Back to DarahBot", "←  Kembali ke DarahBot"), key="quiz_back"):
+            st.session_state.quiz_open = False
+            st.rerun()
         QS = get_questions()
         if "qz" not in st.session_state:
             quiz_reset()
@@ -1410,51 +1459,6 @@ if show("quiz"):
 
         else:  # stage == "mem": memory photos (only reachable after finishing the quiz)
             memory_flow(qz)
-
-# ================================================================ MEMORY PHOTO (locked until the quiz is finished)
-if show("photo"):
-    with section("photo"):
-        heading("Memory photo", "Gambar kenangan",
-                "Your DarahBot memory photo unlocks after you finish the 6-question quiz.",
-                "Gambar kenangan DarahBot dibuka selepas anda menamatkan kuiz 6 soalan.")
-        qz = st.session_state.get("qz", {})
-        if qz.get("stage") in ("done", "mem"):
-            st.success("Quiz finished! Your photo is waiting in the Quiz section. · Kuiz selesai!")
-            go_button("quiz", "📸 Go to my memory photo · Ke gambar saya", key="photo_go_mem", primary=True)
-        else:
-            st.markdown(f'<div class="locked"><span>🔒</span>{B("Finish the quiz first to take your memory photo.", "Tamatkan kuiz dahulu untuk mengambil gambar kenangan.")}</div>',
-                        unsafe_allow_html=True)
-            go_button("quiz", "🏆 Start the quiz · Mula kuiz", key="photo_go_quiz", primary=True)
-
-# ================================================================ GAME
-if show("game"):
-    with section("game"):
-        heading("Guess the number", "Teka nombor", "Guess first, then let the data reveal the truth!", "Teka dulu, kemudian biar data dedahkan jawapan!")
-        if "game" not in st.session_state or st.button("🎲 New question · Soalan baru"):
-            s_ = random.choice(data["states"])
-            y_ = random.randint(2012, FULL)
-            gm = random.choice(["donations", "new_donors", "genz"])
-            st.session_state.game = {"state": s_, "year": y_, "metric": gm, "answer": bot.lookup(data, gm, s_, y_), "revealed": False}
-        g = st.session_state.game
-        label = bot.METRICS[g["metric"]][2]
-        st.markdown(f'<div class="card"><div class="h3">How many <span style="color:var(--blood)">{label}</span> were there in <b>{g["state"]}</b> in <b>{g["year"]}</b>?</div>'
-                f'<span class="ms">Berapa {bot.BM_LABELS.get(label, label)} di {g["state"]} pada {g["year"]}?</span></div>', unsafe_allow_html=True)
-        guess = st.number_input("Your guess · Tekaan anda", min_value=0, step=500, value=0)
-        if st.button("Reveal the answer · Dedahkan jawapan", type="primary"):
-            g["revealed"] = True
-        if g["revealed"]:
-            ans = g["answer"]
-            off = abs(guess - ans) / ans * 100 if ans else 0
-            st.markdown(f'<div class="card"><div class="big-num">{ans:,.0f}</div>{B(f"Real answer · your guess was {off:.0f}% off", f"Jawapan sebenar · tekaan anda tersasar {off:.0f}%")}</div>',
-                        unsafe_allow_html=True)
-            if off <= 10:
-                st.balloons()
-                st.success("Amazing! Within 10%. You're a data expert 🩸 · Hebat! Dalam lingkungan 10%.")
-            elif off <= 30:
-                st.info("Not bad! Within 30%. · Boleh tahan! Dalam lingkungan 30%.")
-            else:
-                st.warning("Quite far! That's why we check the data instead of guessing. · Jauh lagi! Sebab itu kita semak data, bukan meneka.")
-            st.caption(f"Evidence: {bot.METRICS[g['metric']][1]} · state = {g['state']} · year = {g['year']} · {bot.METRICS[g['metric']][4]}")
 
 # ================================================================ EXHIBITION MODE
 if show("show"):

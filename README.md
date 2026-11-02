@@ -67,6 +67,14 @@ visitor message → detect_intent() → find_states() / find_years() / find_metr
 
 No AI model runs inside the app. Every number comes from a pandas calculation.
 
+## Quiz & photo booth (latest)
+- The **🎯 Guess** game was removed (the quiz already does this job).
+- **🏆 Quiz, prize & photo booth** is a button in the side panel, under *Clear chat*, on phones, iPads and computers. It opens the quiz as its own page with a *Back to DarahBot* button.
+- **Photos come straight from the camera, never from the photo library** (`camera.js`):
+  - iPhone, iPad and Android: the device's own Camera app opens directly (full quality, its own settings).
+  - Laptop or desktop: the webcam opens full screen at its highest resolution, with a 3-2-1 countdown, Retake and Use buttons.
+- The DarahBot frame is added automatically as soon as the photo is taken. iPhone HEIC photos work too (`pillow-heif`).
+
 ## New in the v4 update (photo booth)
 - **Tutorial opens by itself on every device**: a short intro, 4 animated steps (Ask, Proof, Menu, Quiz & photo), then Finish. Reopen it any time from the menu ("How to use DarahBot").
 - **Phone home screen is blank, like a new chat.** Example questions live in the Menu side panel, which slides in and out smoothly.
