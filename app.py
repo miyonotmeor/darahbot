@@ -47,6 +47,12 @@ APP_URL = setting("APP_URL", "https://dermadarahchatbox.jomana.my")
 CREDIT = "@amirrulmukminin"
 
 
+LOGO_SVG = ('<svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><defs><radialGradient id="lg" cx="30%" cy="25%" r="80%">'
+            '<stop offset="0" stop-color="#ff5d70"/><stop offset="1" stop-color="#b0122a"/></radialGradient></defs>'
+            '<circle cx="32" cy="32" r="31" fill="url(#lg)" stroke="#fff" stroke-width="2"/>'
+            '<path fill="#fff" transform="translate(14 12) scale(1.5)" d="M12 2.5c-.3 0-.6.2-.8.4C9.3 5.5 5 11 5 14.6 5 18.7 8.1 22 12 22s7-3.3 7-7.4C19 11 14.7 5.5 12.8 2.9c-.2-.2-.5-.4-.8-.4z"/></svg>')
+
+
 def B(en, ms):
     """English line + smaller grey Malay line underneath (same style as the survey)."""
     return f'{en}<span class="ms">{ms}</span>'
@@ -291,7 +297,57 @@ h1, h2, h3, h4 { font-family: var(--display) !important; letter-spacing: -.015em
 .quiz-score .big span { font-size: 30px; opacity:.6; }
 .quiz-score .h3 { font-size: 22px !important; margin-top: 8px !important; }
 .prize-code { display:inline-block; margin-top:10px; background:#fff; color: var(--blood); border-radius:999px; padding:8px 16px; font-weight:600; }
-[data-testid="stCameraInput"] video, [data-testid="stCameraInput"] img { border-radius: 18px; }
+/* ---- logo ---- */
+svg.logo { display:block; filter: drop-shadow(0 8px 14px rgba(176,18,42,.35)); }
+.brand svg.logo { width:44px; height:44px; flex:0 0 44px; }
+.pw-logo { width:84px; height:84px; margin: 4vh auto 10px; animation: float 3.2s ease-in-out infinite; }
+.pw-logo svg.logo { width:84px; height:84px; }
+.pw-hint { display:inline-block; margin-top:14px; font-size:13px; color: var(--muted); background:#fff; border:1px dashed var(--line); border-radius:999px; padding:7px 14px; animation: fadeup .7s .3s both; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes fadeup { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes stepin { from { opacity:0; transform: translateX(26px) scale(.98); } to { opacity:1; transform:none; } }
+/* ---- tour (intro + 4 steps) ---- */
+.tour { animation: stepin .45s cubic-bezier(.2,.8,.2,1) both; }
+.tour-art { overflow:hidden; position:relative; }
+.tour-dots { display:flex; gap:6px; justify-content:center; margin:14px 0 10px; }
+.tour-dots i { width:8px; height:8px; border-radius:99px; background:#EAD6D3; transition: all .35s; }
+.tour-dots i.done { background:#F2A3AE; } .tour-dots i.on { width:26px; background: var(--blood); }
+.tv-intro { display:grid; justify-items:center; gap:4px; color:#fff; }
+.tv-intro svg.logo { width:76px; height:76px; animation: float 3s ease-in-out infinite; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+.tv-intro b { font: 800 28px var(--display); letter-spacing:-.02em; }
+.tv-intro span { font-size:12px; opacity:.8; }
+.tv-type { display:inline-block; overflow:hidden; white-space:nowrap; max-width:0; vertical-align:bottom; color: var(--ink); animation: typing 2.4s steps(28) .3s infinite alternate; }
+@keyframes typing { 0%,15% { max-width:0; } 85%,100% { max-width:190px; } }
+.a1 { animation: fadeup .5s .25s both; } .a2 { animation: fadeup .5s .7s both; }
+.tv-bars i { transform-origin:left; animation: grow 1.1s cubic-bezier(.2,.8,.2,1) both; }
+.tv-bars .g1 { width:100%; animation-delay: .9s; } .tv-bars .g2 { width:72%; animation-delay: 1.05s; } .tv-bars .g3 { width:48%; animation-delay: 1.2s; }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tv-phone { position:relative; width:220px; height:150px; background:#FBF6F4; border-radius:16px; overflow:hidden; box-shadow:0 12px 26px -10px rgba(0,0,0,.5); }
+.tv-side { position:absolute; inset:0 auto 0 0; width:62%; background: linear-gradient(170deg,#C3162F,#7A0A1B); color:#fff; padding:10px; display:grid; gap:5px; align-content:start; z-index:2;
+  animation: sidein 4.2s cubic-bezier(.2,.8,.2,1) infinite; box-shadow: 8px 0 18px -8px rgba(0,0,0,.5); }
+.tv-side b { font-size:12px; } .tv-side span { font-size:10.5px; padding:4px 7px; border-radius:7px; background: rgba(255,255,255,.12); text-align:left; }
+.tv-side span.on { background:#fff; color: var(--blood); font-weight:700; }
+@keyframes sidein { 0%,12% { transform: translateX(-105%); } 30%,72% { transform: translateX(0); } 90%,100% { transform: translateX(-105%); } }
+.tv-main { padding:10px; display:grid; gap:8px; }
+.tv-mbtn { justify-self:start; background: var(--blood); color:#fff; font-size:11px; font-weight:700; padding:4px 9px; border-radius:8px; animation: tap 4.2s infinite; }
+@keyframes tap { 0%,8% { transform: scale(1); } 11% { transform: scale(.88); } 15%,100% { transform: scale(1); } }
+.tv-line { height:10px; border-radius:6px; background:#EADBD8; margin-top:40px; } .tv-line.s { width:60%; margin-top:0; }
+.tv-quiz { display:flex; gap:12px; align-items:center; }
+.tv-quiz > div { background:#fff; border-radius:16px; width:70px; height:70px; display:grid; place-items:center; font-size:30px; animation: fadeup .5s both; }
+.tv-score { font: 800 30px var(--display); color: var(--blood); animation-delay: .1s !important; } .tv-score small { font-size:13px; opacity:.6; }
+.tv-prize { animation-delay: .45s !important; } .tv-photo { animation-delay: .8s !important; }
+/* side panel: smooth slide like an app */
+[data-testid="stSidebar"] { transition: transform .38s cubic-bezier(.2,.8,.2,1), width .38s cubic-bezier(.2,.8,.2,1), opacity .3s !important; }
+[data-testid="stSidebar"][aria-expanded="false"] { opacity:.0; }
+[data-testid="stSidebarUserContent"] > div > div { animation: fadeup .45s both; }
+div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
+/* ---- memory photo ---- */
+.locked { display:flex; gap:12px; align-items:center; background:#fff; border:1px dashed var(--line); border-radius:18px; padding:18px; margin-bottom:12px; font-weight:600; color: var(--ink2); }
+.locked > span { font-size:30px; }
+.cam-tip { background:#FFF0F1; color: var(--blood); border-radius:14px; padding:10px 14px; font-size:14px; margin-bottom:10px; }
+.present-box, .qr-box { background: linear-gradient(160deg,#A3122A,#5C0714); color:#fff; border-radius:18px; padding:16px 18px; margin:14px 0 10px; animation: fadeup .5s both; }
+.present-box p, .qr-box p { margin:6px 0 0; opacity:.85; } .present-box .ms, .qr-box .ms { color: rgba(255,255,255,.8) !important; }
+[data-testid="stFileUploaderDropzone"] { border-radius:16px; border: 2px dashed #E9B9C0; background:#fff; }
 /* bigger, clearer menu button on phones */
 @media (max-width: 760px) {
   [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"] button {
@@ -391,50 +447,73 @@ def go_button(k, label=None, key=None, primary=False):
         st.rerun()
 
 
-# ---------------------------------------------------------------- 3-step tutorial for new phone users
-TOUR = [
-    ("Ask anything", "Tanya apa sahaja",
-     "Type or speak a question about blood donation in Malaysia, in English or Bahasa Melayu.",
-     "Taip atau sebut soalan tentang derma darah di Malaysia, dalam BM atau English.",
-     '<div class="tv-chat"><div class="tv-u">Which state donated the most in 2025?</div>'
-     '<div class="tv-bar"><span>Ask DarahBot…</span><i>➤</i></div></div>'),
-    ("Every answer shows its proof", "Setiap jawapan ada bukti",
-     "DarahBot answers from official KKM data and shows the evidence and a chart, so you know it is true.",
-     "DarahBot menjawab daripada data rasmi KKM dan menunjukkan bukti serta carta.",
-     '<div class="tv-chat"><div class="tv-b"><b>W.P. Kuala Lumpur</b>: 207,084 donations</div>'
-     '<div class="tv-ev">🔎 Evidence · source: KKM</div><div class="tv-bars"><i style="width:92%"></i><i style="width:30%"></i><i style="width:26%"></i></div></div>'),
-    ("Open the menu for more", "Buka menu untuk lagi",
-     "Tap ☰ Menu (top left) to check if you can donate, play the quiz to win a prize, and take a memory photo.",
-     "Tekan ☰ Menu (atas kiri) untuk semak kelayakan menderma, main kuiz untuk hadiah, dan ambil gambar kenangan.",
-     '<div class="tv-menu"><span>✅ Can I donate?</span><span class="on">🏆 Quiz &amp; prize</span><span>📸 Photo booth</span><span>🩸 My blood type</span></div>'),
-]
+# ---------------------------------------------------------------- tutorial: intro + 4 steps (every device, first visit)
+def tour_steps():
+    menu_en = ("Tap the red ☰ Menu (top left) to slide the side panel open: example questions, language and every feature. "
+               "Tap « to hide it again." if PHONE else
+               "Use the tabs to switch features. The red panel on the left has example questions and the language switch; hide it with «.")
+    menu_ms = ("Tekan ☰ Menu merah (atas kiri) untuk buka panel sisi: contoh soalan, bahasa dan semua ciri. Tekan « untuk tutup." if PHONE else
+               "Guna tab untuk tukar ciri. Panel merah di kiri ada contoh soalan dan pilihan bahasa; tutup dengan «.")
+    return [
+        ("Welcome to DarahBot", "Selamat datang ke DarahBot",
+         "Malaysia's blood donation chatbot. Ask in English or Bahasa Melayu, and every answer comes from official KKM data, with proof.",
+         "Chatbot derma darah Malaysia. Tanya dalam BM atau English, dan setiap jawapan daripada data rasmi KKM, dengan bukti.",
+         f'<div class="tv-intro">{LOGO_SVG}<b>DarahBot</b><span>CSC649 · UiTM Kampus Jasin</span></div>'),
+        ("1 · Ask anything", "Tanya apa sahaja",
+         "Type your question in the box at the bottom and press send. Short questions work too: “melaka 2024”.",
+         "Taip soalan di kotak bawah dan tekan hantar. Soalan pendek pun boleh: “melaka 2024”.",
+         '<div class="tv-chat"><div class="tv-u a1">Which state donated the most in 2025?</div>'
+         '<div class="tv-bar"><span class="tv-type">Which state donated the most…</span><i>➤</i></div></div>'),
+        ("2 · Every answer shows its proof", "Setiap jawapan ada bukti",
+         "DarahBot answers, then shows the evidence, a chart and the exact data rows it used, so you know it is true.",
+         "DarahBot menjawab, kemudian menunjukkan bukti, carta dan baris data tepat yang digunakan.",
+         '<div class="tv-chat"><div class="tv-b a1"><b>W.P. Kuala Lumpur</b>: 207,084 donations</div>'
+         '<div class="tv-ev a2">🔎 Evidence · source: KKM data</div>'
+         '<div class="tv-bars"><i class="g1"></i><i class="g2"></i><i class="g3"></i></div></div>'),
+        ("3 · The menu", "Menu",
+         menu_en, menu_ms,
+         '<div class="tv-phone"><div class="tv-side"><b>☰ Menu</b><span>💬 Ask DarahBot</span><span>✅ Can I donate?</span>'
+         '<span class="on">🏆 Quiz &amp; prize</span><span>💡 Try asking…</span></div>'
+         '<div class="tv-main"><div class="tv-mbtn">☰ Menu</div><div class="tv-line"></div><div class="tv-line s"></div></div></div>'),
+        ("4 · Quiz, prize & memory photo", "Kuiz, hadiah & gambar kenangan",
+         "Answer 10 quick questions. Score 8 or more to win a present! Then take a memory photo with our DarahBot frame and download it with a QR code.",
+         "Jawab 10 soalan ringkas. Dapat 8 ke atas untuk hadiah! Kemudian ambil gambar kenangan dengan bingkai DarahBot dan muat turun melalui kod QR.",
+         '<div class="tv-quiz"><div class="tv-score">8<small>/10</small></div><div class="tv-prize">🏆</div>'
+         '<div class="tv-photo">📸</div></div>'),
+    ]
 
 
-@st.dialog("Welcome to DarahBot", width="small", dismissible=False)
+@st.dialog("DarahBot", width="small", dismissible=False)
 def tour():
-    i = st.session_state.get("tour_step", 0)
-    t_en, t_ms, d_en, d_ms, art = TOUR[i]
-    chips = "".join(f'<span class="{"on" if j == i else ""}">{"ABC"[j]} · {x}</span>' for j, x in enumerate(["Ask", "Proof", "Menu"]))
-    st.markdown(f'<div class="tour"><div class="tour-art">{art}</div><div class="tour-chips">{chips}</div>'
+    steps = tour_steps()
+    i = min(st.session_state.get("tour_step", 0), len(steps) - 1)
+    t_en, t_ms, d_en, d_ms, art = steps[i]
+    dots = "".join(f'<i class="{"on" if j == i else ("done" if j < i else "")}"></i>' for j in range(len(steps)))
+    st.markdown(f'<div class="tour" key="{i}"><div class="tour-art">{art}</div><div class="tour-dots">{dots}</div>'
                 f'<div class="tour-t">{t_en}<span class="ms">{t_ms}</span></div>'
                 f'<p>{d_en}<span class="ms">{d_ms}</span></p></div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
-    if i > 0 and c1.button("← Back", width="stretch"):
+    if i == 0:
+        if c1.button("Skip · Langkau", width="stretch"):
+            st.session_state.tour_done = True
+            st.rerun()
+        if c2.button("Start tour · Mula →", type="primary", width="stretch"):
+            st.session_state.tour_step = 1
+            st.rerun(scope="fragment")
+        return
+    if c1.button("← Back · Kembali", width="stretch"):
         st.session_state.tour_step = i - 1
         st.rerun(scope="fragment")
-    if i == 0 and c1.button("Skip", width="stretch"):
-        st.session_state.tour_done = True
-        st.rerun()
-    if i < len(TOUR) - 1:
-        if c2.button("Next →", type="primary", width="stretch"):
+    if i < len(steps) - 1:
+        if c2.button("Next · Seterusnya →", type="primary", width="stretch"):
             st.session_state.tour_step = i + 1
             st.rerun(scope="fragment")
-    elif c2.button("Finish ✓", type="primary", width="stretch"):
+    elif c2.button("Finish · Selesai ✓", type="primary", width="stretch"):
         st.session_state.tour_done = True
         st.rerun()
 
 
-if (PHONE or st.query_params.get("tour")) and not st.session_state.get("tour_done"):
+if not st.session_state.get("tour_done") and st.query_params.get("tour") != "0":
     tour()
 
 
@@ -488,7 +567,7 @@ st.markdown(f'<div class="mblood" style="height:{8 + fill * 62:.0f}vh"><svg view
 
 # ---------------------------------------------------------------- sidebar
 with st.sidebar:
-    st.markdown(f'<div class="brand"><span class="brand-drop"></span><div><b>DarahBot</b>'
+    st.markdown(f'<div class="brand">{LOGO_SVG}<div><b>DarahBot</b>'
                 f'<span>Blood Donation Chatbot</span></div></div>', unsafe_allow_html=True)
     if PHONE:
         st.markdown(f'<div class="side-label">{B("Menu", "Menu")}</div>', unsafe_allow_html=True)
@@ -650,16 +729,12 @@ if show("chat"):
                         st.dataframe(r["rows"], width="stretch", hide_index=True)
 
         if not st.session_state.messages and PHONE:
-            st.markdown(f'''<div class="pwelcome"><div class="pw-drop"></div>
+            st.markdown(f'''<div class="pwelcome"><div class="pw-logo">{LOGO_SVG}</div>
 <div class="pw-t">{B("Hi! I'm DarahBot.", "Hai! Saya DarahBot.")}</div>
 <p>{B("Ask me anything about blood donation in Malaysia. Every answer comes from official KKM data, with proof.",
       "Tanya apa sahaja tentang derma darah di Malaysia. Setiap jawapan daripada data rasmi KKM, dengan bukti.")}</p></div>''', unsafe_allow_html=True)
-            for q in [EX[0], EX[1], EX[7], EX[6]]:
-                if st.button(q, key="pw_" + q, width="stretch"):
-                    st.session_state.pending = q
-            st.markdown(f'<div class="chips-label">{T("Explore", "Teroka")}</div>', unsafe_allow_html=True)
-            go_button("quiz", T("🏆 Play the quiz and win a prize", "🏆 Main kuiz dan menangi hadiah"), key="pw_quiz", primary=True)
-            go_button("photo", T("📸 Take a memory photo", "📸 Ambil gambar kenangan"), key="pw_photo")
+            st.markdown(f'<p class="pw-hint">{B("Tap ☰ Menu for example questions, the quiz and more.", "Tekan ☰ Menu untuk contoh soalan, kuiz dan lagi.")}</p>',
+                        unsafe_allow_html=True)
         elif not st.session_state.messages:
             st.markdown(f'<div class="hello"><b>{B("👋 Hi! I am DarahBot.", "Hai! Saya DarahBot.")}</b>'
                     f'<p style="margin:6px 0 0;color:var(--ink2)">{B("Pick a question below, type your own, or press 🎤 and speak. I answer in the language chosen on the left.", "Pilih soalan di bawah, taip sendiri, atau tekan 🎤 dan bercakap. Saya menjawab dalam bahasa yang dipilih di sebelah kiri.")}</p></div>',
@@ -719,7 +794,7 @@ if show("chat"):
             last = st.session_state.messages[-1]["content"] if st.session_state.messages[-1]["role"] == "assistant" else None
             n_asked = sum(1 for m in st.session_state.messages if m["role"] == "user")
             ideas = [("elig", T("✅ Can I donate?", "✅ Bolehkah saya menderma?")), ("quiz", T("🏆 Quiz & prize", "🏆 Kuiz & hadiah")),
-                     ("type", T("🩸 How rare is my blood type?", "🩸 Jenis darah saya")), ("photo", T("📸 Memory photo", "📸 Gambar kenangan")),
+                     ("type", T("🩸 How rare is my blood type?", "🩸 Jenis darah saya")), ("hosp", T("🏥 Top blood banks", "🏥 Bank darah teratas")),
                      ("story", T("📉 Gen Z story", "📉 Kisah Gen Z")), ("survey", T("📋 Our live survey", "📋 Tinjauan kami"))]
             if last and last["kind"] == "refuse":
                 pick = [ideas[0], ideas[1]]
@@ -744,7 +819,8 @@ if show("chat"):
             </script>""", height=1)
 
         # 🎤 Voice question: Chrome turns speech into text, then it is typed into the chat box for you
-        st.iframe(f"""
+        if not (PHONE and not st.session_state.messages):
+          st.iframe(f"""
     <div style="font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;gap:10px">
       <button id="mic" style="background:linear-gradient(180deg,#D81F3B,#B0122A);color:white;border:none;border-radius:999px;
         padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 10px 20px -10px rgba(176,18,42,.8)">
@@ -1128,6 +1204,117 @@ def quiz_reset():
     st.session_state.qz = {"stage": "start"}
 
 
+def next_person():
+    """Clear everything from the last visitor so the iPad is ready for the next one."""
+    st.session_state.person = st.session_state.get("person", 0) + 1
+    quiz_reset()
+    for k in ("quiz_name",):
+        st.session_state.pop(k, None)
+    st.rerun()
+
+
+def memory_key():
+    """The upload key is the same secret as the survey export link (already in Streamlit Secrets)."""
+    from urllib.parse import parse_qs, urlparse
+    return (parse_qs(urlparse(SURVEY_CSV_URL).query).get("key") or [""])[0]
+
+
+def upload_memory(qz, kind, jpg):
+    """Save the framed photo on dermadarah.jomana.my so the visitor can download it from the QR code."""
+    import base64
+    import requests
+    key = memory_key()
+    if not key:
+        return False
+    try:
+        r = requests.post(SURVEY_URL.rstrip("/") + "/memory.php", timeout=25, json={
+            "key": key, "id": qz["mid"], "kind": kind, "image": base64.b64encode(jpg).decode(),
+            "name": qz.get("name") or "", "score": qz.get("score"), "total": QUIZ_N, "winner": bool(qz.get("win"))})
+        return r.ok and r.json().get("ok", False)
+    except Exception:
+        return False
+
+
+def photo_input(label, key):
+    """Opens the device's OWN camera (full quality, its own settings) through the normal photo picker."""
+    return st.file_uploader(label, type=["jpg", "jpeg", "png", "heic", "webp"], key=key)
+
+
+def show_result(qz, kind, jpg, label):
+    st.image(jpg, width="stretch")
+    st.download_button(f"⬇️ Download · Muat turun ({label})", jpg, mime="image/jpeg", type="primary", width="stretch",
+                       file_name=f"DarahBot_{(qz.get('name') or 'memory').replace(' ', '_')}_{kind}.jpg", key=f"dl_{kind}_{qz['mid']}")
+
+
+def memory_flow(qz):
+    p = st.session_state.get("person", 0)
+    name, score, win = qz.get("name") or "", qz.get("score"), qz.get("win")
+    heading("Capture your memory", "Ambil gambar kenangan",
+            "Choose a style, then tap the button: your device's own camera opens (full quality, mirror and settings as usual).",
+            "Pilih gaya, kemudian tekan butang: kamera peranti anda sendiri akan dibuka (kualiti penuh, tetapan biasa).")
+    st.markdown('<div class="cam-tip">📱 On iPad / iPhone: tap <b>Browse files</b> → <b>Take Photo</b>. '
+                '<span class="ms">Di iPad / iPhone: tekan Browse files → Take Photo.</span></div>', unsafe_allow_html=True)
+    mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo strip (4 photos) · Jalur 4 gambar"],
+                    key=f"mode_{p}", horizontal=True)
+    imgs = qz.setdefault("imgs", {})
+    if mode.startswith("🖼️"):
+        f = photo_input("📷 Take your photo · Ambil gambar", f"cam1_{p}")
+        if f is not None:
+            sig = ("single", f.file_id)
+            if imgs.get("single_sig") != sig:
+                with st.spinner("Framing your photo… · Membingkai gambar…"):
+                    imgs["single"] = photoframe.make_single(f.getvalue(), name, score, QUIZ_N, win)
+                    imgs["single_sig"] = sig
+                    imgs["single_up"] = upload_memory(qz, "single", imgs["single"])
+            show_result(qz, "single", imgs["single"], "framed photo")
+    else:
+        cols = st.columns(2)
+        shots = []
+        for j in range(4):
+            with cols[j % 2]:
+                f = photo_input(f"📷 Photo {j + 1} / 4", f"cam{j + 2}_{p}")
+                if f is not None:
+                    shots.append(f)
+        st.caption(f"{len(shots)} / 4 photos taken · gambar diambil")
+        if len(shots) == 4:
+            sig = ("strip",) + tuple(x.file_id for x in shots)
+            if imgs.get("strip_sig") != sig:
+                with st.spinner("Making your photo strip… · Membuat jalur gambar…"):
+                    imgs["strip"] = photoframe.make_strip([x.getvalue() for x in shots], name, score, QUIZ_N, win)
+                    imgs["strip_sig"] = sig
+                    imgs["strip_up"] = upload_memory(qz, "strip", imgs["strip"])
+            show_result(qz, "strip", imgs["strip"], "photo strip")
+
+    have_main = "single" in imgs or "strip" in imgs
+    if win and have_main:
+        st.markdown(f'''<div class="present-box"><b>{B("🎁 Now claim your present from Amirrul!", "🎁 Sekarang tuntut hadiah anda daripada Amirrul!")}</b>
+<p>{B("Then take one more photo holding your present.", "Kemudian ambil satu lagi gambar sambil memegang hadiah anda.")}</p></div>''', unsafe_allow_html=True)
+        f = photo_input("📷 Photo with your present · Gambar bersama hadiah", f"camP_{p}")
+        if f is not None:
+            sig = ("present", f.file_id)
+            if imgs.get("present_sig") != sig:
+                with st.spinner("Framing… · Membingkai…"):
+                    imgs["present"] = photoframe.make_single(f.getvalue(), name, score, QUIZ_N, True, present=True)
+                    imgs["present_sig"] = sig
+                    imgs["present_up"] = upload_memory(qz, "present", imgs["present"])
+            show_result(qz, "present", imgs["present"], "with your present")
+
+    if have_main:
+        uploaded = any(imgs.get(k + "_up") for k in ("single", "strip", "present"))
+        if uploaded:
+            link = SURVEY_URL.rstrip("/") + "/memory.php?id=" + qz["mid"]
+            c1, c2 = st.columns([1, 2], vertical_alignment="center")
+            c1.image(qr_png(link), width=220)
+            c2.markdown(f'''<div class="qr-box"><b>{B("Scan to download on your own phone", "Imbas untuk muat turun di telefon anda")}</b>
+<p>{B("All your photos (with the frame, your name and score) are on this page.", "Semua gambar anda (berbingkai, nama dan markah) ada di halaman ini.")}</p></div>''', unsafe_allow_html=True)
+        else:
+            st.caption("The QR download page is not connected right now, so please use the Download button above.")
+        if st.button("✅ Done · Next person · Orang seterusnya", type="primary", width="stretch"):
+            next_person()
+    elif st.button("Skip the photo · Langkau gambar", width="stretch"):
+        next_person()
+
+
 if show("quiz"):
     with section("quiz"):
         QS = get_questions()
@@ -1192,9 +1379,10 @@ if show("quiz"):
                     st.rerun()
             st.iframe("<script>window.parent.document.querySelector('.quiz-top')?.scrollIntoView({behavior:'smooth',block:'start'});</script>", height=1)
 
-        else:  # done
+        elif qz["stage"] == "done":
             score = sum(1 for r in qz["res"] if r[1] in ("correct", "close"))
             win = score >= PRIZE_AT
+            qz["score"], qz["win"] = score, win
             who = html.escape(qz.get("name") or "")
             if win and not qz.get("celebrated"):
                 st.balloons()
@@ -1202,58 +1390,40 @@ if show("quiz"):
                 qz["code"] = f"DB-{random.randint(1000, 9999)}"
             st.markdown(f'''<div class="quiz-score {"win" if win else ""}">
 <div class="big">{score}<span>/{QUIZ_N}</span></div>
-<div class="h3">{B(("🏆 Congratulations" + (", " + who if who else "") + "! You win a present!") if win else ("Well done" + (", " + who if who else "") + "!"),
-                  "Tahniah! Anda menang hadiah!" if win else "Syabas!")}</div>
-<p>{B("Show this screen to Amirrul or Ayuni at the booth to collect your prize." if win else f"You needed {PRIZE_AT} to win a prize. Try again later, the next round has new questions!",
-      "Tunjukkan skrin ini kepada Amirrul atau Ayuni di booth untuk menuntut hadiah." if win else f"Perlu {PRIZE_AT} untuk hadiah. Cuba lagi nanti, soalan baru menanti!")}</p>
+<div class="h3">{B(("🏆 Congratulations" + (", " + who if who else "") + "! You win a present!") if win else ("Thank you for trying" + (", " + who if who else "") + "!"),
+                  "Tahniah! Anda menang hadiah!" if win else "Terima kasih kerana mencuba!")}</div>
+<p>{B("Please come to Amirrul at the booth to claim your present. Show him this screen." if win else f"You needed {PRIZE_AT} to win a present, but thank you for playing. Let's still capture your memory!",
+      "Sila jumpa Amirrul di booth untuk menuntut hadiah anda. Tunjukkan skrin ini." if win else f"Perlu {PRIZE_AT} untuk hadiah, tetapi terima kasih kerana bermain. Jom tetap ambil gambar kenangan!")}</p>
 {f'<div class="prize-code">Prize code · Kod hadiah: <b>{qz["code"]}</b></div>' if win else ""}</div>''', unsafe_allow_html=True)
             with st.expander("📝 See all answers · Lihat semua jawapan"):
                 for k, (qid, (a, r)) in enumerate(zip(qz["ids"], qz["res"]), 1):
                     qq = QS[qid]
                     st.markdown(f"**{k}. {qq['en']}**  \n{'✅' if r in ('correct', 'close') else '❌'} you said: _{a or '–'}_ · answer: **{qq['show']}**")
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("📸 Take a memory photo · Ambil gambar", type="primary", width="stretch"):
-                    st.session_state.photo_name = qz.get("name") or ""
-                    st.session_state.photo_score = score
-                    st.session_state.cam_on = True
-                    st.session_state.go = "photo"
-                    st.rerun()
-            with c2:
-                if st.button("🔁 Next person · Orang seterusnya", width="stretch"):
-                    quiz_reset()
-                    st.session_state.pop("quiz_name", None)
-                    st.rerun()
+            if st.button("📸 Capture your memory · Ambil gambar kenangan", type="primary", width="stretch"):
+                qz["stage"] = "mem"
+                qz["mid"] = os.urandom(8).hex()
+                qz["imgs"] = {}
+                st.rerun()
+            if st.button("🔁 Next person · Orang seterusnya", width="stretch"):
+                next_person()
 
-# ================================================================ PHOTO BOOTH
+        else:  # stage == "mem": memory photos (only reachable after finishing the quiz)
+            memory_flow(qz)
+
+# ================================================================ MEMORY PHOTO (locked until the quiz is finished)
 if show("photo"):
     with section("photo"):
-        heading("Photo booth", "Booth gambar",
-                "Take a memory photo with the DarahBot frame. Stand in front of our banner, smile, and download your picture!",
-                "Ambil gambar kenangan dengan bingkai DarahBot. Berdiri di depan banner kami, senyum, dan muat turun gambar anda!")
-        pname = st.text_input("Name on the photo · Nama pada gambar", value=st.session_state.get("photo_name", ""), max_chars=24)
-        if not st.session_state.get("cam_on"):
-            if st.button("📷 Open the camera · Buka kamera", type="primary", width="stretch"):
-                st.session_state.cam_on = True
-                st.rerun()
-            st.caption("The camera only opens when you press the button. On iPad/iPhone, allow camera access when asked.")
+        heading("Memory photo", "Gambar kenangan",
+                "Your DarahBot memory photo unlocks after you finish the 10-question quiz.",
+                "Gambar kenangan DarahBot dibuka selepas anda menamatkan kuiz 10 soalan.")
+        qz = st.session_state.get("qz", {})
+        if qz.get("stage") in ("done", "mem"):
+            st.success("Quiz finished! Your photo is waiting in the Quiz section. · Kuiz selesai!")
+            go_button("quiz", "📸 Go to my memory photo · Ke gambar saya", key="photo_go_mem", primary=True)
         else:
-            shot = st.camera_input("Smile! · Senyum!", key="cam")
-            if shot is not None:
-                sc = st.session_state.get("photo_score")
-                framed = photoframe.make_frame(shot.getvalue(), pname, sc, QUIZ_N if sc is not None else None,
-                                               qr_png("https://darahbot.streamlit.app"))
-                st.image(framed, width="stretch")
-                st.download_button("⬇️ Download my photo · Muat turun gambar", framed,
-                                   file_name=f"DarahBot_{(pname or 'memory').replace(' ', '_')}.jpg", mime="image/jpeg",
-                                   type="primary", width="stretch")
-                st.caption("Tip: on iPad/iPhone, press and hold the photo above and choose “Save to Photos”. "
-                           "Or scan the QR on the photo to try DarahBot.")
-            if st.button("Close camera · Tutup kamera", width="stretch"):
-                st.session_state.cam_on = False
-                for k in ("photo_score", "photo_name"):
-                    st.session_state.pop(k, None)
-                st.rerun()
+            st.markdown(f'<div class="locked"><span>🔒</span>{B("Finish the quiz first to take your memory photo.", "Tamatkan kuiz dahulu untuk mengambil gambar kenangan.")}</div>',
+                        unsafe_allow_html=True)
+            go_button("quiz", "🏆 Start the quiz · Mula kuiz", key="photo_go_quiz", primary=True)
 
 # ================================================================ GAME
 if show("game"):

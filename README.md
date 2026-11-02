@@ -67,6 +67,18 @@ visitor message → detect_intent() → find_states() / find_years() / find_metr
 
 No AI model runs inside the app. Every number comes from a pandas calculation.
 
+## New in the v4 update (photo booth)
+- **Tutorial opens by itself on every device**: a short intro, 4 animated steps (Ask, Proof, Menu, Quiz & photo), then Finish. Reopen it any time from the menu ("How to use DarahBot").
+- **Phone home screen is blank, like a new chat.** Example questions live in the Menu side panel, which slides in and out smoothly.
+- **Correct DarahBot logo** (red circle with a white drop) everywhere.
+- **Memory photo only after the quiz.** The Photo booth section stays locked until the 10 questions are done.
+  - 8 or more: "You win a present! Please see Amirrul at the booth."
+  - Under 8: "Thank you for trying!", and they can still take a photo.
+- **Uses the device's own camera** (full quality, normal settings) through the photo picker, not the small browser camera.
+- **Two styles:** one photo with the DarahBot frame (portrait or landscape, following the photo), or a 4-photo strip. The frame shows the name, score, DarahBot title and logo.
+- **Winners** take one more photo holding their present.
+- **QR code download:** photos are saved on dermadarah.jomana.my (`memory.php`), so the visitor scans the QR and saves them on their own phone. The Download button works too.
+
 ## New in the November 2026 update (exhibition)
 
 - 📱 **Phone screen like a chat app**: welcome, one text bar, everything else in the **☰ Menu**
