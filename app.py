@@ -350,6 +350,21 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes tabpop { 0% { transform: scale(.92); } 60% { transform: scale(1.04); } 100% { transform: scale(1); } }
 .stButton button { transition: transform .15s ease, box-shadow .2s ease, background .2s ease !important; }
 .stButton button:active { transform: scale(.96); }
+/* ---- bag full pop-up ---- */
+.bagfull { position:relative; text-align:center; overflow:hidden; padding-top:6px; }
+.bf-bag { width:120px; margin: 4px auto 6px; animation: bfpop .9s cubic-bezier(.2,1.6,.4,1) both, bfwiggle 2.4s 1s ease-in-out infinite; }
+.bf-bag svg { width:100%; height:auto; filter: drop-shadow(0 14px 24px rgba(176,18,42,.35)); }
+@keyframes bfpop { from { transform: scale(.4) translateY(30px); opacity:0; } to { transform:none; opacity:1; } }
+@keyframes bfwiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+.bf-t { font: 800 26px/1.15 var(--display); color: var(--blood); margin-top:6px; animation: fadeup .5s .4s both; }
+.bf-t .ms { font: 600 14px var(--body); color: var(--muted); }
+.bagfull p { color: var(--ink2); font-size:14.5px; margin:10px 0 6px; animation: fadeup .5s .6s both; }
+.bf-ask { background:#FFF0F1; color: var(--blood); font-weight:700; border-radius:14px; padding:10px 12px; margin:8px 0 6px; animation: fadeup .5s .8s both; }
+.bf-ask .ms { font-weight:500; }
+.bf-confetti { position:absolute; inset:0; pointer-events:none; }
+.bf-confetti i { position:absolute; top:-12px; left: var(--x); width:9px; height:13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--c); animation: bffall 2.6s var(--d) ease-in infinite; opacity:.9; }
+@keyframes bffall { 0% { top:-14px; opacity:0; } 10% { opacity:1; } 100% { top:105%; opacity:0; transform: rotate(-45deg) translateX(14px); } }
 /* ---- quiz registration ---- */
 .reg-card { display:grid; gap:14px; background:#fff; border:1px solid var(--line); border-radius:22px; padding:20px; margin:6px 0 12px;
   box-shadow:0 18px 40px -26px rgba(92,7,20,.6); animation: fadeup .5s both; }
@@ -642,6 +657,37 @@ EXAMPLES = [
     ("How many donors in melak 2024?", "Berapa derma di melak 2024?"),
     ("Why are fewer young people donating?", "Kenapa makin kurang orang muda menderma?"),
 ]
+
+
+@st.cache_resource(show_spinner=False)
+def quiz_examples():
+    """Quiz questions that DarahBot can answer itself (checked once): used as the 'Try asking' suggestions,
+    so a lucky visitor may meet the very same question in the quiz."""
+    out = []
+    for q in quiz.build_questions(data):
+        if q["kind"] == "bool":
+            continue
+        en = re.sub(r"\s*\((yes|ya)[^)]*\)\s*$", "", q["en"]).strip()
+        ms = re.sub(r"\s*\((yes|ya)[^)]*\)\s*$", "", q["ms"]).strip()
+        try:
+            r_en = bot.answer(en, data, None, "en")
+            r_ms = bot.answer(ms, data, None, "bm")
+        except Exception:
+            continue
+        show = str(q["show"]).split(" (")[0].lower()
+        text = str(r_en.get("text", "")).lower().replace(",", "")
+        num = re.sub(r"[^\d]", "", show.split()[0]) if q["kind"] == "num" else ""
+        right = show[:6].replace(",", "") in text or (num and num[:4] in text)
+        if r_en.get("kind") == "ok" and r_ms.get("kind") == "ok" and right:
+            soft = lambda t: re.sub(r"\b[A-Z]{3,}\b", lambda m: m.group(0) if m.group(0) in ("KKM", "PDN") else m.group(0).lower(), t)
+            out.append((soft(en), soft(ms)))     # "the MOST" -> "the most" so it reads like a normal question
+    return out
+
+
+if "ex_pick" not in st.session_state:          # a fresh random set for every visitor
+    _pool = quiz_examples()
+    st.session_state.ex_pick = random.sample(_pool, min(7, len(_pool)))
+EXAMPLES = (st.session_state.ex_pick or EXAMPLES[:7]) + [("Can I donate blood?", "Bolehkah saya derma darah?")]
 EX = [bm if BM else en for en, bm in EXAMPLES]
 
 # ---------------------------------------------------------------- the blood bag (fills as you ask)
@@ -707,6 +753,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.context = None
         st.session_state.editing = None
+        st.session_state.pop("bag_popped", None)
         st.rerun()
     if st.button(T("🏆  Quiz, prize & photo booth", "🏆  Kuiz, hadiah & gambar"), key="side_quiz", type="primary", width="stretch"):
         st.session_state.quiz_open = True
@@ -1349,7 +1396,7 @@ def next_person():
     """Clear everything from the last visitor so the iPad is ready for the next one."""
     st.session_state.person = st.session_state.get("person", 0) + 1
     quiz_reset()
-    for k in ("quiz_name", "reg", "reg_new", "reg_email_in"):   # the next visitor must register too
+    for k in ("quiz_name", "reg", "reg_new", "reg_email_in", "ex_pick", "bag_popped"):   # the next visitor starts fresh
         st.session_state.pop(k, None)
     st.rerun()
 
@@ -1697,6 +1744,34 @@ if show("about"):
 
 
 # ---------------------------------------------------------------- phone: close the menu after choosing a section
+# ---------------------------------------------------------------- the bag is full: invite them to the quiz
+@st.dialog("DarahBot", width="small")
+def bag_full():
+    st.markdown(f'''<div class="bagfull">
+<div class="bf-confetti">{"".join(f'<i style="--x:{x}%;--d:{d}s;--c:{c}"></i>' for x, d, c in
+    [(8, .1, "#E8283F"), (22, .5, "#FFC2CA"), (36, .25, "#B0122A"), (50, .7, "#FFE282"), (64, .15, "#E8283F"),
+     (78, .55, "#FFC2CA"), (90, .35, "#B0122A"), (15, .9, "#FFE282"), (70, .95, "#E8283F")])}</div>
+<div class="bf-bag">{bag_svg(1.0, 0.0)}</div>
+<div class="bf-t">{B("Hooray! The bag is full!", "Hore! Beg sudah penuh!")}</div>
+<p>{B("You asked 6 questions and filled a whole 450 ml blood bag. That is one real donation, which can help save up to 3 lives!",
+      "Anda bertanya 6 soalan dan mengisi satu beg darah 450 ml penuh. Itu satu derma sebenar, yang boleh membantu menyelamatkan sehingga 3 nyawa!")}</p>
+<div class="bf-ask">{B("Ready for the quiz? Score 5 of 6 to win a present!", "Sedia untuk kuiz? Betul 5 daripada 6 untuk menang hadiah!")}</div></div>''',
+                unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    if c1.button("Maybe later · Nanti dulu", width="stretch"):
+        st.rerun()
+    if c2.button("🏆 Yes, quiz me! · Jom!", type="primary", width="stretch"):
+        st.session_state.quiz_open = True
+        st.rerun()
+
+
+_asked_now = sum(1 for m in st.session_state.messages if m["role"] == "user")
+_last = st.session_state.messages[-1]["role"] if st.session_state.messages else ""
+if (_asked_now >= BAG_GOAL and _last == "assistant" and not QUIZ_MODE and not st.session_state.get("bag_popped")
+        and (st.session_state.get("tour_done") or st.query_params.get("tour") == "0")):   # never on top of the tutorial
+    st.session_state.bag_popped = True
+    bag_full()
+
 if PHONE and st.session_state.pop("close_menu", False):
     st.iframe("""<script>
     const d = window.parent.document;
