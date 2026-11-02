@@ -83,7 +83,10 @@ No AI model runs inside the app. Every number comes from a pandas calculation.
   - 5 or more (out of 6): "You win a present! Please see Amirrul at the booth."
   - Under 5: "Thank you for trying!", and they can still take a photo.
 - **Uses the device's own camera** (full quality, normal settings) through the photo picker, not the small browser camera.
-- **Two styles:** one photo with the DarahBot frame, or a set of 4 photos in a 2x2 grid. Both are always one **landscape** picture, and the photo is never cropped (portrait or landscape, the whole photo is shown). The frame shows the name, score, DarahBot title and logo.
+- **Two styles:**
+  - one photo in the landscape DarahBot frame (computers always shoot landscape; phones and iPads can shoot either way, nothing is cropped);
+  - **photo booth**: one press takes 4 photos in a row (3-second timer before each, a warning first), made into a classic red photo-booth strip.
+- Saved photos are never mirrored (only the live preview is, like a mirror). The frame shows the name, score, DarahBot title and logo.
 - **Winners** take one more photo holding their present.
 - **QR code download:** photos are saved on dermadarah.jomana.my (`memory.php`), so the visitor scans the QR and saves them on their own phone. The Download button works too.
 

@@ -369,8 +369,10 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button svg, [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button span { opacity:0; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button::after { content:"📷  Open camera · Buka kamera"; position:absolute; inset:0; display:flex;
   align-items:center; justify-content:center; text-align:center; padding:0 14px; color:#fff; font: 800 clamp(15px, 2.2vw, 19px)/1.2 var(--display); }
+[class*="st-key-cambooth"] [data-testid="stFileUploaderDropzone"] button::after { content:"🎞️  Start photo booth · Mula (4 gambar)"; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) { min-height:60px; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button::after { content:"↺  Retake · Ambil semula"; font-size:16px; }
+[class*="st-key-cam"] [data-testid="stFileChips"] > *:not(button) { display:none !important; }
 /* the quiz button in the side panel stands out */
 .st-key-side_quiz button { background:#fff !important; color: var(--blood) !important; border:0 !important; font-weight:800 !important;
   box-shadow: 0 10px 24px -10px rgba(0,0,0,.45); animation: glowq 2.4s ease-in-out infinite; }
@@ -1286,8 +1288,8 @@ def camera_script():
     """Turns the photo boxes into camera buttons (see camera.js): the phone/iPad Camera app opens directly,
     computers get a full-screen, full-resolution webcam with a 3-2-1 countdown. No picking files."""
     import json
-    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js'))return;"
-              "var s=d.createElement('script');s.id='dbcam-js';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
+    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js3'))return;"
+              "var s=d.createElement('script');s.id='dbcam-js3';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
               ";d.head.appendChild(s);})();</script>", height=1)
 
 
@@ -1311,7 +1313,7 @@ def memory_flow(qz):
     camera_script()
     st.markdown('<div class="cam-tip">📷 Tap the camera button: your camera opens. Snap your photo and the DarahBot frame is added straight away. '
                 '<span class="ms">Tekan butang kamera: kamera akan dibuka. Ambil gambar dan bingkai DarahBot terus ditambah.</span></div>', unsafe_allow_html=True)
-    mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo strip (4 photos) · Jalur 4 gambar"],
+    mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo booth: 4 photos in a row · 4 gambar berturut-turut"],
                     key=f"mode_{p}", horizontal=True)
     imgs = qz.setdefault("imgs", {})
     if mode.startswith("🖼️"):
@@ -1325,14 +1327,14 @@ def memory_flow(qz):
                     imgs["single_up"] = upload_memory(qz, "single", imgs["single"])
             show_result(qz, "single", imgs["single"], "framed photo")
     else:
-        cols = st.columns(2)
-        shots = []
-        for j in range(4):
-            with cols[j % 2]:
-                f = photo_input(f"📷 Photo {j + 1} / 4", f"cam{j + 2}_{p}")
-                if f is not None:
-                    shots.append(f)
-        st.caption(f"{len(shots)} / 4 photos taken · gambar diambil")
+        st.markdown('<div class="cam-tip">🎞️ One press, 4 photos: a 3-second timer runs before each photo and the camera keeps going until all 4 are done. '
+                    '<span class="ms">Satu tekan, 4 gambar: pemasa 3 saat sebelum setiap gambar, kamera terus berjalan sehingga 4 gambar siap.</span></div>',
+                    unsafe_allow_html=True)
+        files = st.file_uploader("🎞️ Photo booth · 4 photos", type=["jpg", "jpeg", "png", "heic", "heif", "webp"],
+                                 accept_multiple_files=True, key=f"cambooth_{p}")
+        shots = list(files or [])[-4:]                    # a retake replaces the last set
+        if 0 < len(shots) < 4:
+            st.caption(f"{len(shots)} / 4 photos · gambar")
         if len(shots) == 4:
             sig = ("strip",) + tuple(x.file_id for x in shots)
             if imgs.get("strip_sig") != sig:
@@ -1340,7 +1342,7 @@ def memory_flow(qz):
                     imgs["strip"] = photoframe.make_strip([x.getvalue() for x in shots], name, score, QUIZ_N, win)
                     imgs["strip_sig"] = sig
                     imgs["strip_up"] = upload_memory(qz, "strip", imgs["strip"])
-            show_result(qz, "strip", imgs["strip"], "photo strip")
+            show_result(qz, "strip", imgs["strip"], "photo booth strip")
 
     have_main = "single" in imgs or "strip" in imgs
     if win and have_main:

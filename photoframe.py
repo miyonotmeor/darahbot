@@ -3,7 +3,7 @@ photoframe.py  -  DarahBot memory photos
 =========================================
 make_single(): one photo inside the DarahBot frame, on a LANDSCAPE page. The photo is never cropped:
                landscape or portrait, the whole picture is shown.
-make_strip():  four photos in a 2 x 2 grid on the same landscape page.
+make_strip():  classic photo-booth strip (4 photos stacked) in the DarahBot red theme.
 Both return JPEG bytes. Photos come from the device's own camera (full quality).
 """
 import datetime as dt
@@ -295,22 +295,72 @@ def make_single(photo_bytes, name="", score=None, total=6, winner=False, present
 
 
 def make_strip(photos, name="", score=None, total=6, winner=False):
-    """Photo-booth set: 4 photos in a 2 x 2 grid on the same landscape DarahBot page. Nothing is cropped."""
-    ims = [load_photo(p, 1600) for p in photos]
-    base, s = _canvas()
-    inset, g = int(22 * s), int(18 * s)
-    asp = sorted(im.width / im.height for im in ims)[len(ims) // 2]          # typical shape of these photos
-    asp = min(max(asp, 0.6), 1.9)
-    bw, bh = BOX[2] - BOX[0] - 2 * inset - g, BOX[3] - BOX[1] - 2 * inset - g
-    chh = min(bw / (2 * asp), bh / 2)
-    cww = chh * asp
-    pw, ph = int(2 * cww + g + 2 * inset), int(2 * chh + g + 2 * inset)
-    panel = _place_panel(base, pw, ph, s)
-    for i, im in enumerate(ims[:4]):
-        r, c = divmod(i, 2)
-        cx0 = panel[0] + inset + c * (cww + g)
-        cy0 = panel[1] + inset + r * (chh + g)
-        k = min(cww / im.width, chh / im.height)
-        p = im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.LANCZOS)
-        base.alpha_composite(_rounded(p, int(30 * s)), (int(cx0 + (cww - p.width) / 2), int(cy0 + (chh - p.height) / 2)))
-    return _decorate(base, s, panel, name, score, total, winner, False)
+    """Classic photo-booth STRIP in the DarahBot red theme: 4 photos stacked, film holes on the sides,
+    logo on top, name + score at the bottom. Photos are never cropped."""
+    ims = [load_photo(p, 1600) for p in photos][:4]
+    W, m, pw, gap = 1200, 110, 980, 46
+    sizes = []
+    for im in ims:
+        h = int(pw * im.height / im.width)
+        sizes.append((pw, min(h, int(pw * 1.45))))
+    head, foot = 300, 470
+    H = head + sum(h for _, h in sizes) + gap * (len(ims) - 1) + foot
+    # red gradient background with a soft dot pattern
+    yy, xx = np.mgrid[0:H, 0:W]
+    t = np.clip(yy / H * 0.85 + xx / W * 0.15, 0, 1)[..., None]
+    bg = (np.array(RED2) * (1 - t) + np.array(WINE) * t).astype("uint8")
+    base = Image.fromarray(bg, "RGB").convert("RGBA")
+    dots = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    dd = ImageDraw.Draw(dots)
+    for y in range(20, H, 40):
+        for x in range(20 + (y // 40 % 2) * 20, W, 40):
+            dd.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(255, 255, 255, 22))
+    base.alpha_composite(dots)
+    d = ImageDraw.Draw(base)
+    # film holes down both sides
+    for y in range(40, H - 30, 70):
+        for x in (26, W - 26 - 30):
+            d.rounded_rectangle([x, y, x + 30, y + 40], radius=8, fill=(40, 2, 8, 255))
+    # header
+    draw_logo(base, W / 2 - 230, 150, 62)
+    d = ImageDraw.Draw(base)
+    d.text((W / 2 - 150, 92), "DarahBot", fill="white", font=font(104, "black"))
+    sub = "PHOTO BOOTH  ·  CSC649 DATA SCIENCE EXHIBITION"
+    f = font(26, "semi")
+    d.text(((W - d.textlength(sub, font=f)) / 2, 222), sub, fill=(255, 194, 202), font=f)
+    # photos (whole picture, white border, shadow)
+    y = head
+    for im, (w, h) in zip(ims, sizes):
+        k = min(w / im.width, h / im.height)
+        p = im.resize((int(im.width * k), int(im.height * k)), Image.LANCZOS)
+        x = (W - p.width) // 2
+        yy0 = y + (h - p.height) // 2
+        _shadow(base, (x - 12, yy0 - 12, x + p.width + 12, yy0 + p.height + 12), 30, 18, (0, 14), 120)
+        d = ImageDraw.Draw(base)
+        d.rounded_rectangle([x - 12, yy0 - 12, x + p.width + 12, yy0 + p.height + 12], radius=30, fill="white")
+        base.alpha_composite(_rounded(p, 22), (x, yy0))
+        y += h + gap
+    # footer: name in a dashed box, score pill, place and date
+    y = H - foot + 60
+    who = (name or "Blood hero").strip()[:30]
+    d = ImageDraw.Draw(base)
+    fs = 120
+    while fs > 56 and d.textlength(who, font=font(fs, "black")) > W - 2 * m - 60:
+        fs -= 6
+    f = font(fs, "black")
+    tw = d.textlength(who, font=f)
+    nx = (W - tw) / 2
+    d.text((nx, y), who, fill=(255, 226, 130), font=f)
+    _dashed_box(d, (nx - 26, y - 6, nx + tw + 26, y + fs * 1.2), 1.0)
+    pill = (f"Quiz {score}/{total}" if score is not None else "DarahBot") + ("  ·  Winner 🏆".replace(" 🏆", "") if winner else "  ·  Thank you!")
+    fp = font(40, "semi")
+    pwid = d.textlength(pill, font=fp) + 70
+    py = y + fs * 1.2 + 46
+    d.rounded_rectangle([(W - pwid) / 2, py, (W + pwid) / 2, py + 76], radius=38, fill="white")
+    d.text(((W - pwid) / 2 + 35, py + 14), pill, fill=RED, font=fp)
+    line = "UiTM Kampus Jasin  ·  " + dt.date.today().strftime("%d %b %Y") + "  ·  darahbot.streamlit.app"
+    fl = font(28)
+    d.text(((W - d.textlength(line, font=fl)) / 2, py + 112), line, fill=(255, 220, 225), font=fl)
+    out = io.BytesIO()
+    base.convert("RGB").save(out, format="JPEG", quality=93)
+    return out.getvalue()
