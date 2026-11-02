@@ -11,6 +11,8 @@ Made by @amirrulmukminin for the CSC649 Python Data Science Exhibition.
 import html
 import io
 import os
+import tempfile
+from contextlib import contextmanager
 import random
 import re
 import socket
@@ -21,6 +23,8 @@ import plotly.express as px
 import streamlit as st
 
 import bot_engine as bot
+import photoframe
+import quiz
 
 st.set_page_config(page_title="DarahBot · Malaysia Blood Donation Chatbot", page_icon="assets/bot.png",
                    layout="wide", initial_sidebar_state="auto")
@@ -236,6 +240,68 @@ h1, h2, h3, h4 { font-family: var(--display) !important; letter-spacing: -.015em
   [data-testid="stChatMessage"], .card, .kpi, .fact, .hello { background-color: rgba(255,255,255,.94); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---------- v3: phone welcome, tutorial, quiz ---------- */
+.pwelcome { text-align:center; padding: 18px 6px 6px; }
+.pw-drop { width:64px; height:64px; margin:0 auto 14px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+  background: linear-gradient(135deg,#ff5d70,var(--blood)); box-shadow:0 14px 28px -12px rgba(176,18,42,.8); animation: bob 2.6s ease-in-out infinite; }
+@keyframes bob { 50% { transform: rotate(-45deg) translate(4px,-4px); } }
+.pw-t { font: 800 30px/1.1 var(--display); letter-spacing:-.02em; color: var(--ink); }
+.pw-t .ms { font: 500 15px var(--body); margin-top:6px; }
+.pwelcome p { color: var(--ink2); font-size: 15px; margin: 12px auto 4px; max-width: 420px; }
+.pwelcome p .ms { font-size: 12.5px; }
+.tour { text-align:center; }
+.tour-art { background: linear-gradient(160deg,#A3122A,#5C0714); border-radius:18px; padding:18px; min-height:150px; display:grid; place-items:center; }
+.tour-chips { display:flex; gap:6px; justify-content:center; margin:14px 0 8px; }
+.tour-chips span { font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; background:#F3E7E5; color:var(--ink2); }
+.tour-chips span.on { background: var(--blood); color:#fff; }
+.tour-t { font: 800 21px/1.2 var(--display); color: var(--ink); }
+.tour-t .ms { font: 500 13px var(--body); }
+.tour p { color: var(--ink2); font-size: 14.5px; margin: 8px 0 4px; }
+.tour p .ms { font-size: 12.5px; }
+.tv-chat { width:100%; max-width:260px; display:grid; gap:8px; }
+.tv-u { justify-self:end; background:#fff; color:var(--ink); font-size:12.5px; font-weight:600; padding:8px 11px; border-radius:12px 12px 3px 12px; }
+.tv-bar { display:flex; justify-content:space-between; align-items:center; background:#fff; border-radius:999px; padding:7px 7px 7px 14px; font-size:12px; color:var(--muted); box-shadow:0 0 0 3px rgba(255,255,255,.35); animation: glow 1.6s infinite; }
+.tv-bar i { width:26px; height:26px; border-radius:50%; background: var(--blood); color:#fff; display:grid; place-items:center; font-style:normal; font-size:12px; }
+@keyframes glow { 50% { box-shadow:0 0 0 7px rgba(255,255,255,.18); } }
+.tv-b { background:#fff; color:var(--ink); font-size:12.5px; padding:9px 11px; border-radius:12px 12px 12px 3px; text-align:left; }
+.tv-ev { background:#FFF0F1; color:var(--blood); font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:8px; text-align:left; }
+.tv-bars { display:grid; gap:5px; } .tv-bars i { display:block; height:9px; border-radius:6px; background:#fff; }
+.tv-bars i:first-child { background:#FFC2CA; }
+.tv-menu { display:grid; gap:7px; width:100%; max-width:230px; }
+.tv-menu span { background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.25); border-radius:10px; padding:8px 12px; font-size:13px; text-align:left; }
+.tv-menu span.on { background:#fff; color: var(--blood); font-weight:700; }
+.quiz-start { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin: 6px 0 14px; }
+.quiz-start div { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; text-align:center; }
+.quiz-start b { display:block; font: 800 30px/1 var(--display); color: var(--blood); }
+.quiz-start span { font-size:13px; font-weight:600; color: var(--ink2); } .quiz-start .ms { font-size:11px; }
+.quiz-top { display:flex; justify-content:space-between; font-weight:700; color: var(--ink2); font-size:14px; scroll-margin-top: 80px; }
+.quiz-bar { height:10px; background:#F1E4E1; border-radius:8px; overflow:hidden; margin: 8px 0 12px; }
+.quiz-bar i { display:block; height:100%; background: linear-gradient(90deg,var(--blood2),var(--blood)); border-radius:8px; transition: width .6s; }
+.quiz-q .h3 { font-size: 21px !important; }
+.quiz-fb { border-radius:16px; padding:14px 16px; display:grid; gap:6px; margin-bottom:12px; animation: pop .4s both; }
+.quiz-fb.ok { background:#E6F5EE; border:1px solid #BFE3D1; } .quiz-fb.no { background:#FDF4EA; border:1px solid #F1D2B6; }
+.quiz-fb b { font: 800 19px var(--display); } .quiz-fb.ok b { color: var(--ok); } .quiz-fb.no b { color: var(--warn); }
+.quiz-fb small { color: var(--muted); }
+.quiz-score { text-align:center; background:#fff; border:1px solid var(--line); border-radius:22px; padding:22px 18px; margin-bottom:12px; }
+.quiz-score.win { background: linear-gradient(160deg,#A3122A,#5C0714); color:#fff; border:0; }
+.quiz-score.win .ms, .quiz-score.win p { color: rgba(255,255,255,.85) !important; }
+.quiz-score .big { font: 800 72px/1 var(--display); letter-spacing:-.04em; color: var(--blood); }
+.quiz-score.win .big, .quiz-score.win .h3 { color:#fff !important; }
+.quiz-score .big span { font-size: 30px; opacity:.6; }
+.quiz-score .h3 { font-size: 22px !important; margin-top: 8px !important; }
+.prize-code { display:inline-block; margin-top:10px; background:#fff; color: var(--blood); border-radius:999px; padding:8px 16px; font-weight:600; }
+[data-testid="stCameraInput"] video, [data-testid="stCameraInput"] img { border-radius: 18px; }
+/* bigger, clearer menu button on phones */
+@media (max-width: 760px) {
+  [data-testid="stExpandSidebarButton"], [data-testid="stSidebarCollapsedControl"] button {
+    background: var(--blood) !important; color:#fff !important; border-radius: 12px !important; padding: 6px 10px !important;
+    box-shadow: 0 8px 18px -8px rgba(176,18,42,.8); }
+  [data-testid="stExpandSidebarButton"] svg, [data-testid="stSidebarCollapsedControl"] svg { fill:#fff !important; color:#fff !important; }
+  [data-testid="stExpandSidebarButton"]::after { content: "Menu"; font: 700 14px var(--body); color:#fff; margin-left: 4px; }
+  [data-testid="stExpandSidebarButton"] { width:auto !important; display:inline-flex !important; align-items:center; gap:2px; }
+  .block-container, [data-testid="stMainBlockContainer"] { padding-bottom: 7rem; }
+}
 </style>
 """
 # (blank lines would break the <style> block inside st.markdown, so they are removed first)
@@ -280,6 +346,96 @@ if "context" not in st.session_state:
 def T(en, ms):
     """For the chatbot's answers and buttons: English or Malay, depending on the switch."""
     return ms if BM else en
+
+
+# ---------------------------------------------------------------- phone or full layout?
+def looks_like_phone():
+    """Phones get a simple chat-first screen. Add ?view=full or ?view=phone to the link to force a layout."""
+    v = (st.query_params.get("view") or "").lower()
+    if v in ("phone", "mobile", "simple"):
+        return True
+    if v in ("full", "desktop", "ipad"):
+        return False
+    try:
+        ua = st.context.headers.get("User-Agent") or ""
+    except Exception:
+        ua = ""
+    return bool(re.search(r"iPhone|iPod|Android.*Mobile|Windows Phone|Mobile Safari", ua)) and "iPad" not in ua
+
+
+if "phone_view" not in st.session_state:
+    st.session_state.phone_view = looks_like_phone()
+PHONE = st.session_state.phone_view
+
+SECTIONS = [("chat", "💬 Ask DarahBot"), ("elig", "✅ Can I donate?"), ("quiz", "🏆 Quiz & prize"), ("photo", "📸 Photo booth"),
+            ("survey", "📋 Our survey"), ("type", "🩸 My blood type"), ("map", "🗺️ State map"), ("hosp", "🏥 Hospitals"),
+            ("cal", "📅 Calendar"), ("time", "⏳ Time machine"), ("story", "📉 Gen Z story"), ("game", "🎯 Guess"),
+            ("show", "📺 Exhibition"), ("about", "📄 About")]
+LABEL = dict(SECTIONS)
+KEY_OF = {lab: k for k, lab in SECTIONS}
+
+# a button somewhere asked to open another section
+if st.session_state.get("go"):
+    _go = st.session_state.pop("go")
+    if PHONE:
+        st.session_state.nav = LABEL[_go]
+    else:
+        st.session_state.tab = LABEL[_go]
+NAV = KEY_OF.get(st.session_state.get("nav", LABEL["chat"]), "chat")
+
+
+def go_button(k, label=None, key=None, primary=False):
+    """A button that opens another section (works with the phone menu and the computer tabs)."""
+    if st.button(label or LABEL[k], key=key or f"go_{k}_{label}", width="stretch", type="primary" if primary else "secondary"):
+        st.session_state.go = k
+        st.rerun()
+
+
+# ---------------------------------------------------------------- 3-step tutorial for new phone users
+TOUR = [
+    ("Ask anything", "Tanya apa sahaja",
+     "Type or speak a question about blood donation in Malaysia, in English or Bahasa Melayu.",
+     "Taip atau sebut soalan tentang derma darah di Malaysia, dalam BM atau English.",
+     '<div class="tv-chat"><div class="tv-u">Which state donated the most in 2025?</div>'
+     '<div class="tv-bar"><span>Ask DarahBot…</span><i>➤</i></div></div>'),
+    ("Every answer shows its proof", "Setiap jawapan ada bukti",
+     "DarahBot answers from official KKM data and shows the evidence and a chart, so you know it is true.",
+     "DarahBot menjawab daripada data rasmi KKM dan menunjukkan bukti serta carta.",
+     '<div class="tv-chat"><div class="tv-b"><b>W.P. Kuala Lumpur</b>: 207,084 donations</div>'
+     '<div class="tv-ev">🔎 Evidence · source: KKM</div><div class="tv-bars"><i style="width:92%"></i><i style="width:30%"></i><i style="width:26%"></i></div></div>'),
+    ("Open the menu for more", "Buka menu untuk lagi",
+     "Tap ☰ Menu (top left) to check if you can donate, play the quiz to win a prize, and take a memory photo.",
+     "Tekan ☰ Menu (atas kiri) untuk semak kelayakan menderma, main kuiz untuk hadiah, dan ambil gambar kenangan.",
+     '<div class="tv-menu"><span>✅ Can I donate?</span><span class="on">🏆 Quiz &amp; prize</span><span>📸 Photo booth</span><span>🩸 My blood type</span></div>'),
+]
+
+
+@st.dialog("Welcome to DarahBot", width="small", dismissible=False)
+def tour():
+    i = st.session_state.get("tour_step", 0)
+    t_en, t_ms, d_en, d_ms, art = TOUR[i]
+    chips = "".join(f'<span class="{"on" if j == i else ""}">{"ABC"[j]} · {x}</span>' for j, x in enumerate(["Ask", "Proof", "Menu"]))
+    st.markdown(f'<div class="tour"><div class="tour-art">{art}</div><div class="tour-chips">{chips}</div>'
+                f'<div class="tour-t">{t_en}<span class="ms">{t_ms}</span></div>'
+                f'<p>{d_en}<span class="ms">{d_ms}</span></p></div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    if i > 0 and c1.button("← Back", width="stretch"):
+        st.session_state.tour_step = i - 1
+        st.rerun(scope="fragment")
+    if i == 0 and c1.button("Skip", width="stretch"):
+        st.session_state.tour_done = True
+        st.rerun()
+    if i < len(TOUR) - 1:
+        if c2.button("Next →", type="primary", width="stretch"):
+            st.session_state.tour_step = i + 1
+            st.rerun(scope="fragment")
+    elif c2.button("Finish ✓", type="primary", width="stretch"):
+        st.session_state.tour_done = True
+        st.rerun()
+
+
+if (PHONE or st.query_params.get("tour")) and not st.session_state.get("tour_done"):
+    tour()
 
 
 EXAMPLES = [
@@ -334,6 +490,10 @@ st.markdown(f'<div class="mblood" style="height:{8 + fill * 62:.0f}vh"><svg view
 with st.sidebar:
     st.markdown(f'<div class="brand"><span class="brand-drop"></span><div><b>DarahBot</b>'
                 f'<span>Blood Donation Chatbot</span></div></div>', unsafe_allow_html=True)
+    if PHONE:
+        st.markdown(f'<div class="side-label">{B("Menu", "Menu")}</div>', unsafe_allow_html=True)
+        st.radio("Menu", [lab for _, lab in SECTIONS], key="nav", label_visibility="collapsed",
+                 on_change=lambda: st.session_state.update(close_menu=True))
     note = (B("The bag is full. Thank you for asking!", "Beg sudah penuh. Terima kasih kerana bertanya!") if fill >= 1
             else B(f"Ask {BAG_GOAL - asked} more question{'s' if BAG_GOAL - asked != 1 else ''} to fill the bag",
                    f"Tanya {BAG_GOAL - asked} soalan lagi untuk mengisi beg"))
@@ -347,6 +507,10 @@ with st.sidebar:
     if new_lang != st.session_state.lang:
         st.session_state.lang = new_lang
         st.rerun()
+    if st.button(T("❓  How to use DarahBot", "❓  Cara guna DarahBot"), width="stretch"):
+        st.session_state.tour_step = 0
+        st.session_state.tour_done = False
+        tour()
     if st.button(T("🗑️  Clear chat", "🗑️  Padam perbualan"), width="stretch"):
         st.session_state.messages = []
         st.session_state.context = None
@@ -357,6 +521,9 @@ with st.sidebar:
     for q in EX:
         if st.button(q, key="side_" + q, width="stretch"):
             st.session_state.pending = q
+            if (PHONE and NAV != "chat") or (not PHONE and st.session_state.get("tab", LABEL["chat"]) != LABEL["chat"]):
+                st.session_state.go = "chat"
+                st.rerun()
 
     # QR code: on the exhibition Mac it points to this Wi-Fi; online it points to the public link
     try:
@@ -394,7 +561,8 @@ SECS, _ = bot.seconds_per_donation(data)
 ch = (nat_full - nat_prev) / nat_prev * 100
 gz_ch = gz_full - gz_2019
 
-st.markdown(f"""
+if not PHONE:
+    st.markdown(f"""
 <section class="hero">
   <span class="hero-tag"><i></i>In {FULL}, someone in Malaysia donated blood every {SECS:.0f} seconds</span>
   <div class="h1">Ask DarahBot.<br><em>Every answer shows its proof.</em>
@@ -412,110 +580,171 @@ st.markdown(f"""
 FACTS = bot.fun_facts(data, st.session_state.lang)
 if "fact" not in st.session_state:
     st.session_state.fact = random.randrange(len(FACTS))
-fc, fb = st.columns([6, 1], vertical_alignment="center")
-fact, fact_ev = FACTS[st.session_state.fact]
-fc.markdown(f'<div class="fact"><span class="ico">💡</span><div><b>{T("Did you know?", "Tahukah anda?")}</b> {md_bold(fact)}'
-            f'<small>🔎 {fact_ev}</small></div></div>', unsafe_allow_html=True)
-if fb.button(T("🔀 Another fact", "🔀 Fakta lain"), width="stretch"):
-    st.session_state.fact = (st.session_state.fact + random.randrange(1, len(FACTS))) % len(FACTS)
-    st.rerun()
-st.write("")
+if not PHONE:
+    fc, fb = st.columns([6, 1], vertical_alignment="center")
+    fact, fact_ev = FACTS[st.session_state.fact]
+    fc.markdown(f'<div class="fact"><span class="ico">💡</span><div><b>{T("Did you know?", "Tahukah anda?")}</b> {md_bold(fact)}'
+                f'<small>🔎 {fact_ev}</small></div></div>', unsafe_allow_html=True)
+    if fb.button(T("🔀 Another fact", "🔀 Fakta lain"), width="stretch"):
+        st.session_state.fact = (st.session_state.fact + random.randrange(1, len(FACTS))) % len(FACTS)
+        st.rerun()
+    st.write("")
 
-(tab_chat, tab_elig, tab_survey, tab_type, tab_map, tab_hosp, tab_cal, tab_time, tab_story, tab_game, tab_show,
- tab_about) = st.tabs(["💬 Ask DarahBot", "✅ Can I donate?", "📋 Our survey", "🩸 My blood type", "🗺️ State map",
-                       "🏥 Hospitals", "📅 Calendar", "⏳ Time machine", "📉 Gen Z story", "🎯 Guess", "📺 Exhibition",
-                       "📄 About"])
+TABS = {}
+if not PHONE:
+    _t = st.tabs([lab for _, lab in SECTIONS], key="tab", on_change="rerun")
+    TABS = dict(zip([k for k, _ in SECTIONS], _t))
+
+
+def show(k):
+    """Only build the section that is on screen (faster, and the camera only opens when needed)."""
+    return NAV == k if PHONE else TABS[k].open
+
+
+@contextmanager
+def section(k):
+    if PHONE:
+        yield            # top level on phones, so the chat box stays pinned at the bottom
+    else:
+        with TABS[k]:
+            yield
 
 # ================================================================ CHAT
-with tab_chat:
-    def typing(text):
-        for word in text.split(" "):
-            yield word + " "
-            time.sleep(0.022)
+if show("chat"):
+    with section("chat"):
+        def typing(text):
+            for word in text.split(" "):
+                yield word + " "
+                time.sleep(0.022)
 
-    def show_reply(r, idx, animate=False):
-        if animate:  # three hopping blood drops while DarahBot "thinks"
-            ph = st.empty()
-            ph.markdown(f'<div class="typing"><i></i><i></i><i></i>&nbsp;{T("DarahBot is checking the data…", "DarahBot sedang menyemak data…")}</div>',
-                        unsafe_allow_html=True)
-            time.sleep(0.8)
-            ph.empty()
-        if r["kind"] == "refuse":
-            html = md_bold(r["text"])
-            html = re.sub(r"\*(.+?)\*", r"<i>\1</i>", html).replace("\n- ", "<br>• ").replace("\n", "<br>")
-            st.markdown(f'<div class="refuse">🙅 {html}</div>', unsafe_allow_html=True)
-        elif animate:
-            st.write_stream(typing(r["text"]))
-        else:
-            st.markdown(r["text"])
-        if r["kind"] == "ok":
-            for n in r["notes"]:
-                st.caption("ℹ️ " + n)
-        if r["evidence"]:
-            e = r["evidence"]
-            st.markdown(f'<div class="evidence">🔎 <b>{T("Evidence", "Bukti")}</b> · value: <b>{e["value"]}</b> · field: <code>{e["field"]}</code>'
-                        f' · filter: {e["filters"]} · unit: {e["unit"]}<br>source: {e["source"]}</div>', unsafe_allow_html=True)
-        if r["chart"] is not None:
-            st.plotly_chart(r["chart"], width="stretch", key=f"chart_{idx}", config={"displayModeBar": False}, theme=None)
-        if r["rows"] is not None:
-            with st.expander(T("🧾 How I got this (the exact rows I used)", "🧾 Bagaimana saya dapat ini (baris data tepat)")):
-                st.dataframe(r["rows"], width="stretch", hide_index=True)
-
-    if not st.session_state.messages:
-        st.markdown(f'<div class="hello"><b>{B("👋 Hi! I am DarahBot.", "Hai! Saya DarahBot.")}</b>'
-                    f'<p style="margin:6px 0 0;color:var(--ink2)">{B("Pick a question below, type your own, or press 🎤 and speak. I answer in the language chosen on the left.", "Pilih soalan di bawah, taip sendiri, atau tekan 🎤 dan bercakap. Saya menjawab dalam bahasa yang dipilih di sebelah kiri.")}</p></div>',
-                    unsafe_allow_html=True)
-        st.markdown(f'<div class="chips-label">{T("Try one of these", "Cuba salah satu")}</div>', unsafe_allow_html=True)
-        cols = st.columns(2)
-        for i, q in enumerate(EX[:8]):
-            if cols[i % 2].button(q, key="main_" + q, width="stretch"):
-                st.session_state.pending = q
-
-    for i, m in enumerate(st.session_state.messages):
-        with st.chat_message(m["role"], avatar="assets/user.png" if m["role"] == "user" else "assets/bot.png"):
-            if m["role"] == "user":
-                if st.session_state.get("editing") == i:
-                    new_q = st.text_input(T("Edit your question", "Ubah soalan anda"), value=m["content"], key=f"edit_box_{i}")
-                    b1, b2, _ = st.columns([1, 1, 4])
-                    if b1.button(T("↩️ Resend", "↩️ Hantar semula"), key=f"resend_{i}", type="primary", width="stretch"):
-                        if new_q.strip():
-                            earlier = st.session_state.messages[:i]
-                            st.session_state.messages = earlier
-                            ok_replies = [x["content"] for x in earlier if x["role"] == "assistant" and x["content"]["kind"] == "ok"]
-                            st.session_state.context = ok_replies[-1]["context"] if ok_replies else None
-                            st.session_state.editing = None
-                            st.session_state.pending = new_q.strip()
-                            st.rerun()
-                        else:
-                            st.caption(":red[Type a question first.]")
-                    if b2.button(T("Cancel", "Batal"), key=f"cancel_{i}", width="stretch"):
-                        st.session_state.editing = None
-                        st.rerun()
-                else:
-                    q_col, e_col = st.columns([12, 1], vertical_alignment="center")
-                    q_col.markdown(f'<div class="umsg">{html.escape(m["content"])}</div>', unsafe_allow_html=True)
-                    if e_col.button("✏️", key=f"edit_{i}", help=T("Edit and resend this question", "Ubah dan hantar semula soalan ini")):
-                        st.session_state.editing = i
-                        st.rerun()
+        def show_reply(r, idx, animate=False):
+            if animate:  # three hopping blood drops while DarahBot "thinks"
+                ph = st.empty()
+                ph.markdown(f'<div class="typing"><i></i><i></i><i></i>&nbsp;{T("DarahBot is checking the data…", "DarahBot sedang menyemak data…")}</div>',
+                            unsafe_allow_html=True)
+                time.sleep(0.8)
+                ph.empty()
+            if r["kind"] == "refuse":
+                html = md_bold(r["text"])
+                html = re.sub(r"\*(.+?)\*", r"<i>\1</i>", html).replace("\n- ", "<br>• ").replace("\n", "<br>")
+                st.markdown(f'<div class="refuse">🙅 {html}</div>', unsafe_allow_html=True)
+            elif animate:
+                st.write_stream(typing(r["text"]))
             else:
-                show_reply(m["content"], i, animate=(i == st.session_state.get("animate")))
-    st.session_state.animate = None
+                st.markdown(r["text"])
+            if r["kind"] == "ok":
+                for n in r["notes"]:
+                    st.caption("ℹ️ " + n)
+            proof = st.expander(T("🔎 Show proof (evidence & data rows)", "🔎 Tunjuk bukti (bukti & baris data)")) if PHONE else st.container()
+            if r["evidence"]:
+                e = r["evidence"]
+                proof.markdown(f'<div class="evidence">🔎 <b>{T("Evidence", "Bukti")}</b> · value: <b>{e["value"]}</b> · field: <code>{e["field"]}</code>'
+                        f' · filter: {e["filters"]} · unit: {e["unit"]}<br>source: {e["source"]}</div>', unsafe_allow_html=True)
+            if r["chart"] is not None:
+                st.plotly_chart(r["chart"], width="stretch", key=f"chart_{idx}", config={"displayModeBar": False}, theme=None)
+            if r["rows"] is not None:
+                if PHONE:
+                    proof.dataframe(r["rows"], width="stretch", hide_index=True)
+                else:
+                    with st.expander(T("🧾 How I got this (the exact rows I used)", "🧾 Bagaimana saya dapat ini (baris data tepat)")):
+                        st.dataframe(r["rows"], width="stretch", hide_index=True)
 
-    # quick follow-up buttons under the last answer (shows the bot remembers)
-    ctx = st.session_state.context
-    if st.session_state.messages and ctx:
-        other = next(s for s in ["Johor", "Selangor", "Pulau Pinang"] if s not in (ctx["states"] or []))
-        chips = [T(f"What about {other}?", f"Bagaimana dengan {other}?"), T("And in 2019?", "Kalau 2019?")]
-        if ctx["intent"] != "trend":
-            chips.append(T("Show the trend since 2015", "Tunjuk trend sejak 2015"))
-        st.markdown(f'<div class="chips-label">{T("Ask a follow-up", "Tanya soalan susulan")}</div>', unsafe_allow_html=True)
-        for col, chip in zip(st.columns(len(chips)), chips):
-            if col.button(chip, key=f"chip_{chip}_{len(st.session_state.messages)}", width="stretch"):
-                st.session_state.pending = chip
-                st.rerun()
+        if not st.session_state.messages and PHONE:
+            st.markdown(f'''<div class="pwelcome"><div class="pw-drop"></div>
+<div class="pw-t">{B("Hi! I'm DarahBot.", "Hai! Saya DarahBot.")}</div>
+<p>{B("Ask me anything about blood donation in Malaysia. Every answer comes from official KKM data, with proof.",
+      "Tanya apa sahaja tentang derma darah di Malaysia. Setiap jawapan daripada data rasmi KKM, dengan bukti.")}</p></div>''', unsafe_allow_html=True)
+            for q in [EX[0], EX[1], EX[7], EX[6]]:
+                if st.button(q, key="pw_" + q, width="stretch"):
+                    st.session_state.pending = q
+            st.markdown(f'<div class="chips-label">{T("Explore", "Teroka")}</div>', unsafe_allow_html=True)
+            go_button("quiz", T("🏆 Play the quiz and win a prize", "🏆 Main kuiz dan menangi hadiah"), key="pw_quiz", primary=True)
+            go_button("photo", T("📸 Take a memory photo", "📸 Ambil gambar kenangan"), key="pw_photo")
+        elif not st.session_state.messages:
+            st.markdown(f'<div class="hello"><b>{B("👋 Hi! I am DarahBot.", "Hai! Saya DarahBot.")}</b>'
+                    f'<p style="margin:6px 0 0;color:var(--ink2)">{B("Pick a question below, type your own, or press 🎤 and speak. I answer in the language chosen on the left.", "Pilih soalan di bawah, taip sendiri, atau tekan 🎤 dan bercakap. Saya menjawab dalam bahasa yang dipilih di sebelah kiri.")}</p></div>',
+                        unsafe_allow_html=True)
+            st.markdown(f'<div class="chips-label">{T("Try one of these", "Cuba salah satu")}</div>', unsafe_allow_html=True)
+            cols = st.columns(2)
+            for i, q in enumerate(EX[:8]):
+                if cols[i % 2].button(q, key="main_" + q, width="stretch"):
+                    st.session_state.pending = q
 
-    # 🎤 Voice question: Chrome turns speech into text, then it is typed into the chat box for you
-    st.iframe(f"""
+        scroll_now = st.session_state.get("animate") is not None
+        for i, m in enumerate(st.session_state.messages):
+            with st.chat_message(m["role"], avatar="assets/user.png" if m["role"] == "user" else "assets/bot.png"):
+                if m["role"] == "user":
+                    if st.session_state.get("editing") == i:
+                        new_q = st.text_input(T("Edit your question", "Ubah soalan anda"), value=m["content"], key=f"edit_box_{i}")
+                        b1, b2, _ = st.columns([1, 1, 4])
+                        if b1.button(T("↩️ Resend", "↩️ Hantar semula"), key=f"resend_{i}", type="primary", width="stretch"):
+                            if new_q.strip():
+                                earlier = st.session_state.messages[:i]
+                                st.session_state.messages = earlier
+                                ok_replies = [x["content"] for x in earlier if x["role"] == "assistant" and x["content"]["kind"] == "ok"]
+                                st.session_state.context = ok_replies[-1]["context"] if ok_replies else None
+                                st.session_state.editing = None
+                                st.session_state.pending = new_q.strip()
+                                st.rerun()
+                            else:
+                                st.caption(":red[Type a question first.]")
+                        if b2.button(T("Cancel", "Batal"), key=f"cancel_{i}", width="stretch"):
+                            st.session_state.editing = None
+                            st.rerun()
+                    else:
+                        q_col, e_col = st.columns([12, 1], vertical_alignment="center")
+                        q_col.markdown(f'<div class="umsg">{html.escape(m["content"])}</div>', unsafe_allow_html=True)
+                        if e_col.button("✏️", key=f"edit_{i}", help=T("Edit and resend this question", "Ubah dan hantar semula soalan ini")):
+                            st.session_state.editing = i
+                            st.rerun()
+                else:
+                    show_reply(m["content"], i, animate=(i == st.session_state.get("animate")))
+        st.session_state.animate = None
+
+        # quick follow-up buttons under the last answer (shows the bot remembers)
+        ctx = st.session_state.context
+        if st.session_state.messages and ctx:
+            other = next(s for s in ["Johor", "Selangor", "Pulau Pinang"] if s not in (ctx["states"] or []))
+            chips = [T(f"What about {other}?", f"Bagaimana dengan {other}?"), T("And in 2019?", "Kalau 2019?")]
+            if ctx["intent"] != "trend":
+                chips.append(T("Show the trend since 2015", "Tunjuk trend sejak 2015"))
+            st.markdown(f'<div class="chips-label">{T("Ask a follow-up", "Tanya soalan susulan")}</div>', unsafe_allow_html=True)
+            for col, chip in zip(st.columns(len(chips)), chips):
+                if col.button(chip, key=f"chip_{chip}_{len(st.session_state.messages)}", width="stretch"):
+                    st.session_state.pending = chip
+                    st.rerun()
+
+        # suggest the hidden features too (like a real assistant would)
+        if st.session_state.messages:
+            last = st.session_state.messages[-1]["content"] if st.session_state.messages[-1]["role"] == "assistant" else None
+            n_asked = sum(1 for m in st.session_state.messages if m["role"] == "user")
+            ideas = [("elig", T("✅ Can I donate?", "✅ Bolehkah saya menderma?")), ("quiz", T("🏆 Quiz & prize", "🏆 Kuiz & hadiah")),
+                     ("type", T("🩸 How rare is my blood type?", "🩸 Jenis darah saya")), ("photo", T("📸 Memory photo", "📸 Gambar kenangan")),
+                     ("story", T("📉 Gen Z story", "📉 Kisah Gen Z")), ("survey", T("📋 Our live survey", "📋 Tinjauan kami"))]
+            if last and last["kind"] == "refuse":
+                pick = [ideas[0], ideas[1]]
+            else:
+                pick = [ideas[(n_asked + j) % len(ideas)] for j in (0, 2)]
+            st.markdown(f'<div class="chips-label">{T("You might also like", "Anda mungkin suka")}</div>', unsafe_allow_html=True)
+            for col, (k, lab) in zip(st.columns(len(pick)), pick):
+                with col:
+                    go_button(k, lab, key=f"idea_{k}_{n_asked}")
+
+        # jump to the newest question + answer, so nobody has to scroll
+        if scroll_now:
+            st.iframe(f"""<script>/* {len(st.session_state.messages)} */
+            const doc = window.parent.document;
+            function jump() {{
+              const m = doc.querySelectorAll('[data-testid="stChatMessage"]');
+              if (!m.length) return;
+              const t = m.length > 1 ? m[m.length - 2] : m[m.length - 1];
+              t.scrollIntoView({{behavior: "smooth", block: "start"}});
+            }}
+            setTimeout(jump, 120); setTimeout(jump, 600);
+            </script>""", height=1)
+
+        # 🎤 Voice question: Chrome turns speech into text, then it is typed into the chat box for you
+        st.iframe(f"""
     <div style="font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;gap:10px">
       <button id="mic" style="background:linear-gradient(180deg,#D81F3B,#B0122A);color:white;border:none;border-radius:999px;
         padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 10px 20px -10px rgba(176,18,42,.8)">
@@ -545,17 +774,18 @@ with tab_chat:
     }};
     </script>""", height=52)
 
-    typed = st.chat_input(T("Ask about blood donations by state, year, age group or blood type…",
-                            "Tanya tentang derma darah mengikut negeri, tahun, umur atau jenis darah…"))
-    question = typed or st.session_state.pop("pending", None)
-    if question:
-        st.session_state.messages.append({"role": "user", "content": question})
-        reply = bot.answer(question, data, st.session_state.context, st.session_state.lang, survey=survey)
-        if reply["kind"] == "ok" and reply["context"]:
-            st.session_state.context = reply["context"]
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        st.session_state.animate = len(st.session_state.messages) - 1
-        st.rerun()
+        typed = st.chat_input(T("Ask DarahBot…", "Tanya DarahBot…") if PHONE else
+                              T("Ask about blood donations by state, year, age group or blood type…",
+                                "Tanya tentang derma darah mengikut negeri, tahun, umur atau jenis darah…"))
+        question = typed or st.session_state.pop("pending", None)
+        if question:
+            st.session_state.messages.append({"role": "user", "content": question})
+            reply = bot.answer(question, data, st.session_state.context, st.session_state.lang, survey=survey)
+            if reply["kind"] == "ok" and reply["context"]:
+                st.session_state.context = reply["context"]
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            st.session_state.animate = len(st.session_state.messages) - 1
+            st.rerun()
 
 
 # ================================================================ CAN I DONATE?
@@ -564,27 +794,28 @@ def rules_html(rules):
         f'<li class="{"pass" if ok else "fail"}"><i>{"✓" if ok else "!"}</i><span>{B(en, ms)}</span></li>' for ok, en, ms in rules) + "</ul>"
 
 
-with tab_elig:
-    heading("Can I donate blood?", "Bolehkah saya menderma darah?",
-            "Answer 5 quick questions to get an early hypothesis, the same check our survey uses.",
-            "Jawab 5 soalan ringkas untuk mendapat hipotesis awal, sama seperti semakan dalam tinjauan kami.")
-    a, b = st.columns(2)
-    e_age = a.number_input("Age · Umur (years / tahun)", min_value=10, max_value=100, value=20, step=1)
-    e_wt = b.number_input("Weight · Berat (kg)", min_value=20.0, max_value=250.0, value=55.0, step=0.5)
-    e_sleep = a.slider("Usual sleep per night · Tidur biasa setiap malam (hours / jam)", 0.0, 16.0, 7.0, 0.5)
-    e_meds = b.slider("Days a month on long-term medicine · Hari sebulan mengambil ubat jangka panjang", 0, 31, 0)
-    e_tat = st.radio("Tattoo, piercing or acupuncture in the last 12 months? · Tatu, tindik atau akupunktur dalam 12 bulan lepas?",
-                     ["No · Tidak", "Yes · Ya"], horizontal=True)
-    if st.button("Check my result · Semak keputusan saya", type="primary"):
-        st.session_state.elig = bot.check_eligibility(e_age, e_wt, e_sleep, e_tat.startswith("Yes"), e_meds)
-    if st.session_state.get("elig"):
-        rules = st.session_state.elig
-        passed = sum(1 for ok, *_ in rules if ok)
-        good = passed == len(rules)
-        colour = "var(--ok)" if good else "var(--warn)"
-        label = B("You can probably donate blood", "Anda berkemungkinan LAYAK menderma darah") if good else \
-            B("You probably cannot donate yet", "Anda berkemungkinan BELUM LAYAK menderma darah")
-        st.markdown(f"""
+if show("elig"):
+    with section("elig"):
+        heading("Can I donate blood?", "Bolehkah saya menderma darah?",
+                "Answer 5 quick questions to get an early hypothesis, the same check our survey uses.",
+                "Jawab 5 soalan ringkas untuk mendapat hipotesis awal, sama seperti semakan dalam tinjauan kami.")
+        a, b = st.columns(2)
+        e_age = a.number_input("Age · Umur (years / tahun)", min_value=10, max_value=100, value=20, step=1)
+        e_wt = b.number_input("Weight · Berat (kg)", min_value=20.0, max_value=250.0, value=55.0, step=0.5)
+        e_sleep = a.slider("Usual sleep per night · Tidur biasa setiap malam (hours / jam)", 0.0, 16.0, 7.0, 0.5)
+        e_meds = b.slider("Days a month on long-term medicine · Hari sebulan mengambil ubat jangka panjang", 0, 31, 0)
+        e_tat = st.radio("Tattoo, piercing or acupuncture in the last 12 months? · Tatu, tindik atau akupunktur dalam 12 bulan lepas?",
+                         ["No · Tidak", "Yes · Ya"], horizontal=True)
+        if st.button("Check my result · Semak keputusan saya", type="primary"):
+            st.session_state.elig = bot.check_eligibility(e_age, e_wt, e_sleep, e_tat.startswith("Yes"), e_meds)
+        if st.session_state.get("elig"):
+            rules = st.session_state.elig
+            passed = sum(1 for ok, *_ in rules if ok)
+            good = passed == len(rules)
+            colour = "var(--ok)" if good else "var(--warn)"
+            label = B("You can probably donate blood", "Anda berkemungkinan LAYAK menderma darah") if good else \
+                B("You probably cannot donate yet", "Anda berkemungkinan BELUM LAYAK menderma darah")
+            st.markdown(f"""
 <div class="card" style="--c:{colour}">
   <div class="h3">{B("Our early hypothesis for you", "Hipotesis awal kami untuk anda")}</div>
   <div class="result" style="margin-top:12px">
@@ -599,21 +830,22 @@ with tab_elig:
 <div class="cta"><span style="font-size:28px">📋</span><div>{B(f'Help us build the real model: take our 2-minute survey at <a href="{SURVEY_URL}" target="_blank">{SURVEY_URL.replace("https://", "")}</a>',
      "Bantu kami membina model sebenar: jawab tinjauan 2 minit kami")}</div></div>
 """, unsafe_allow_html=True)
-    st.caption("🔎 " + bot.SOURCE_RULES)
+        st.caption("🔎 " + bot.SOURCE_RULES)
 
 # ================================================================ OUR SURVEY (live)
-with tab_survey:
-    heading("Our survey, live", "Tinjauan kami, secara langsung",
-            "Answers from dermadarah.jomana.my. Donors become our database; first-timers get a hypothesis. No names or emails are shown.",
-            "Jawapan daripada dermadarah.jomana.my. Penderma menjadi pangkalan data kami; yang belum pernah mendapat hipotesis. Tiada nama atau e-mel ditunjukkan.")
-    if survey is None:
-        msg = B("The survey data is not connected right now, so I will not show any numbers.",
-                "Data tinjauan tidak disambungkan sekarang, jadi saya tidak akan menunjukkan sebarang nombor.")
-        st.markdown('<div class="card">' + msg + '<p class="note">Setup: add <code>SURVEY_CSV_URL</code> to '
+if show("survey"):
+    with section("survey"):
+        heading("Our survey, live", "Tinjauan kami, secara langsung",
+                "Answers from dermadarah.jomana.my. Donors become our database; first-timers get a hypothesis. No names or emails are shown.",
+                "Jawapan daripada dermadarah.jomana.my. Penderma menjadi pangkalan data kami; yang belum pernah mendapat hipotesis. Tiada nama atau e-mel ditunjukkan.")
+        if survey is None:
+            msg = B("The survey data is not connected right now, so I will not show any numbers.",
+                    "Data tinjauan tidak disambungkan sekarang, jadi saya tidak akan menunjukkan sebarang nombor.")
+            st.markdown('<div class="card">' + msg + '<p class="note">Setup: add <code>SURVEY_CSV_URL</code> to '
                     '<code>.streamlit/secrets.toml</code> (see README).</p></div>', unsafe_allow_html=True)
-    else:
-        s = bot.survey_summary(survey)
-        st.markdown(f"""
+        else:
+            s = bot.survey_summary(survey)
+            st.markdown(f"""
 <div class="kpis">
   <div class="kpi"><b>{s['n']}</b><span>{B("Total answers", "Jumlah jawapan")}</span></div>
   <div class="kpi"><b>{s['donors']}</b><span>{B("Have donated (database)", "Pernah menderma (pangkalan data)")}</span></div>
@@ -621,68 +853,69 @@ with tab_survey:
   <div class="kpi"><b>{(f"{s['avg_willing']:.1f}" if s['avg_willing'] is not None and s['n'] else "–")}</b><span>{B("Average willingness /10", "Purata kesanggupan /10")}</span></div>
 </div>""", unsafe_allow_html=True)
 
-        def split(a, b_, la, lb):
-            tot = max(1, a + b_)
-            pa = a / tot * 100
-            bars = (f'<i style="width:{pa}%;background:var(--ok)"></i><i style="width:{100 - pa}%;background:var(--warn)"></i>'
-                    if a + b_ else "")
-            return (f'<div class="split">{bars}</div><div class="legend"><span><em style="background:var(--ok)"></em>{la} <b>{a}</b></span>'
+            def split(a, b_, la, lb):
+                tot = max(1, a + b_)
+                pa = a / tot * 100
+                bars = (f'<i style="width:{pa}%;background:var(--ok)"></i><i style="width:{100 - pa}%;background:var(--warn)"></i>'
+                        if a + b_ else "")
+                return (f'<div class="split">{bars}</div><div class="legend"><span><em style="background:var(--ok)"></em>{la} <b>{a}</b></span>'
                     f'<span><em style="background:var(--warn)"></em>{lb} <b>{b_}</b></span></div>')
 
-        c1, c2 = st.columns(2)
-        c1.markdown(f'<div class="card"><div class="h3">{B("Donors: last result", "Penderma: keputusan terakhir")}</div>'
+            c1, c2 = st.columns(2)
+            c1.markdown(f'<div class="card"><div class="h3">{B("Donors: last result", "Penderma: keputusan terakhir")}</div>'
                     f'{split(s["accepted"], s["deferred"], "Accepted · Diterima", "Deferred · Ditangguhkan")}</div>', unsafe_allow_html=True)
-        c2.markdown(f'<div class="card"><div class="h3">{B("Never donated: our hypothesis", "Belum pernah: hipotesis kami")}</div>'
+            c2.markdown(f'<div class="card"><div class="h3">{B("Never donated: our hypothesis", "Belum pernah: hipotesis kami")}</div>'
                     f'{split(s["likely"], s["not_yet"], "Probably eligible · Layak", "Not yet · Belum layak")}</div>', unsafe_allow_html=True)
-        if s["n"]:
-            sv = survey.copy()
-            g1, g2 = st.columns(2)
-            by_state = sv["state"].value_counts().rename_axis("state").reset_index(name="value")
-            g1.plotly_chart(bot.bar_chart(by_state, [by_state.iloc[0]["state"]], "Answers by state · Jawapan mengikut negeri", "new_donors")
-                            .update_layout(xaxis_title="people"), width="stretch", config={"displayModeBar": False}, theme=None)
-            bt = sv["blood_type"].value_counts().rename_axis("blood type").reset_index(name="people")
-            fig = px.pie(bt, names="blood type", values="people", hole=.55, title="Blood type · Jenis darah",
-                         color_discrete_sequence=[bot.RED, bot.PINK, bot.WINE, bot.BLUSH, bot.GREY])
-            fig.update_traces(textinfo="label+percent")
-            fig.update_layout(legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center"))
-            g2.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-            g3, g4 = st.columns(2)
-            ages = pd.cut(sv["age"], [0, 17, 24, 34, 44, 60, 200], labels=["17", "18–24", "25–34", "35–44", "45–60", "61+"])
-            ag = ages.value_counts().reindex(["17", "18–24", "25–34", "35–44", "45–60", "61+"], fill_value=0).rename_axis("age").reset_index(name="people")
-            fig = px.bar(ag, x="age", y="people", text="people", title="Age group · Kumpulan umur")
-            fig.update_traces(marker_color=bot.RED, textposition="outside", cliponaxis=False)
-            g3.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-            w = sv["willingness"].value_counts().reindex(range(1, 11), fill_value=0).rename_axis("score").reset_index(name="people")
-            fig = px.bar(w, x="score", y="people", text="people", title="Willingness to donate (1–10) · Kesanggupan menderma")
-            fig.update_traces(marker_color=[bot.BLUSH] * 5 + [bot.PINK] * 3 + [bot.RED] * 2, textposition="outside", cliponaxis=False)
-            fig.update_xaxes(dtick=1)
-            g4.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-        st.caption("🔎 " + bot.SOURCE_SURVEY + " · refreshes every minute / dikemas kini setiap minit")
-    q1, q2 = st.columns([1, 4], vertical_alignment="center")
-    q1.image(qr_png(SURVEY_URL), width=140)
-    short_url = SURVEY_URL.replace("https://", "")
-    link = '<a href="' + SURVEY_URL + '" target="_blank">' + short_url + '</a>'
-    cta = B("Not answered yet? Scan the code or open " + link + ". It takes about 2 minutes.",
-            "Belum menjawab? Imbas kod atau buka " + link + ". Hanya kira-kira 2 minit.")
-    q2.markdown('<div class="cta"><div>' + cta + '</div></div>', unsafe_allow_html=True)
+            if s["n"]:
+                sv = survey.copy()
+                g1, g2 = st.columns(2)
+                by_state = sv["state"].value_counts().rename_axis("state").reset_index(name="value")
+                g1.plotly_chart(bot.bar_chart(by_state, [by_state.iloc[0]["state"]], "Answers by state · Jawapan mengikut negeri", "new_donors")
+                                .update_layout(xaxis_title="people"), width="stretch", config={"displayModeBar": False}, theme=None)
+                bt = sv["blood_type"].value_counts().rename_axis("blood type").reset_index(name="people")
+                fig = px.pie(bt, names="blood type", values="people", hole=.55, title="Blood type · Jenis darah",
+                             color_discrete_sequence=[bot.RED, bot.PINK, bot.WINE, bot.BLUSH, bot.GREY])
+                fig.update_traces(textinfo="label+percent")
+                fig.update_layout(legend=dict(orientation="h", y=-0.12, x=0.5, xanchor="center"))
+                g2.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+                g3, g4 = st.columns(2)
+                ages = pd.cut(sv["age"], [0, 17, 24, 34, 44, 60, 200], labels=["17", "18–24", "25–34", "35–44", "45–60", "61+"])
+                ag = ages.value_counts().reindex(["17", "18–24", "25–34", "35–44", "45–60", "61+"], fill_value=0).rename_axis("age").reset_index(name="people")
+                fig = px.bar(ag, x="age", y="people", text="people", title="Age group · Kumpulan umur")
+                fig.update_traces(marker_color=bot.RED, textposition="outside", cliponaxis=False)
+                g3.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+                w = sv["willingness"].value_counts().reindex(range(1, 11), fill_value=0).rename_axis("score").reset_index(name="people")
+                fig = px.bar(w, x="score", y="people", text="people", title="Willingness to donate (1–10) · Kesanggupan menderma")
+                fig.update_traces(marker_color=[bot.BLUSH] * 5 + [bot.PINK] * 3 + [bot.RED] * 2, textposition="outside", cliponaxis=False)
+                fig.update_xaxes(dtick=1)
+                g4.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+            st.caption("🔎 " + bot.SOURCE_SURVEY + " · refreshes every minute / dikemas kini setiap minit")
+        q1, q2 = st.columns([1, 4], vertical_alignment="center")
+        q1.image(qr_png(SURVEY_URL), width=140)
+        short_url = SURVEY_URL.replace("https://", "")
+        link = '<a href="' + SURVEY_URL + '" target="_blank">' + short_url + '</a>'
+        cta = B("Not answered yet? Scan the code or open " + link + ". It takes about 2 minutes.",
+                "Belum menjawab? Imbas kod atau buka " + link + ". Hanya kira-kira 2 minit.")
+        q2.markdown('<div class="cta"><div>' + cta + '</div></div>', unsafe_allow_html=True)
 
 # ================================================================ MY BLOOD TYPE
-with tab_type:
-    heading("What's your blood type?", "Apakah jenis darah anda?",
-            "Pick yours and see how common it is among donations in Malaysia.",
-            "Pilih jenis anda dan lihat betapa biasanya ia dalam derma darah di Malaysia.")
-    a, b = st.columns(2)
-    bt = a.radio("My blood type · Jenis darah saya", ["A", "B", "O", "AB"], horizontal=True, index=2)
-    home = b.selectbox("My state · Negeri saya", data["states"], index=data["states"].index("Melaka"))
-    prof = bot.blood_type_profile(data, bt)
-    nat_row = prof[prof.state == "Malaysia"].iloc[0]
-    states_only = prof[prof.state != "Malaysia"].reset_index(drop=True)
-    mine = states_only[states_only.state == home].iloc[0]
-    rank_no = int(states_only.index[states_only.state == home][0]) + 1
-    pct = round(nat_row["percent"])
-    word = ("rare", "jarang") if nat_row["percent"] < 10 else (("common", "biasa") if nat_row["percent"] > 30 else ("fairly common", "agak biasa"))
-    waffle = "".join(f'<span class="{"" if i < pct else "off"}" style="animation-delay:{i * 8}ms"></span>' for i in range(100))
-    st.markdown(f"""
+if show("type"):
+    with section("type"):
+        heading("What's your blood type?", "Apakah jenis darah anda?",
+                "Pick yours and see how common it is among donations in Malaysia.",
+                "Pilih jenis anda dan lihat betapa biasanya ia dalam derma darah di Malaysia.")
+        a, b = st.columns(2)
+        bt = a.radio("My blood type · Jenis darah saya", ["A", "B", "O", "AB"], horizontal=True, index=2)
+        home = b.selectbox("My state · Negeri saya", data["states"], index=data["states"].index("Melaka"))
+        prof = bot.blood_type_profile(data, bt)
+        nat_row = prof[prof.state == "Malaysia"].iloc[0]
+        states_only = prof[prof.state != "Malaysia"].reset_index(drop=True)
+        mine = states_only[states_only.state == home].iloc[0]
+        rank_no = int(states_only.index[states_only.state == home][0]) + 1
+        pct = round(nat_row["percent"])
+        word = ("rare", "jarang") if nat_row["percent"] < 10 else (("common", "biasa") if nat_row["percent"] > 30 else ("fairly common", "agak biasa"))
+        waffle = "".join(f'<span class="{"" if i < pct else "off"}" style="animation-delay:{i * 8}ms"></span>' for i in range(100))
+        st.markdown(f"""
 <div class="card">
   <div class="big-num">{nat_row['percent']:.1f}%</div>
   <div class="h3" style="margin-top:6px !important">{B(f"of donations in Malaysia were type {bt} ({FULL})", f"daripada derma di Malaysia ialah jenis {bt} ({FULL})")}</div>
@@ -691,21 +924,21 @@ with tab_type:
   <p style="margin:12px 0 0">{B(f"Type {bt} is <b>{word[0]}</b>. In <b>{home}</b>, type {bt} was <b>{mine['percent']:.1f}%</b> of donations ({mine['donations']:,.0f} bags), ranking <b>#{rank_no} of {len(states_only)}</b> states.",
                                 f"Jenis {bt} adalah <b>{word[1]}</b>. Di <b>{home}</b>, jenis {bt} ialah <b>{mine['percent']:.1f}%</b> daripada derma ({mine['donations']:,.0f} beg), kedudukan <b>#{rank_no} daripada {len(states_only)}</b> negeri.")}</p>
 </div>""", unsafe_allow_html=True)
-    fig = bot.bar_chart(states_only.rename(columns={"percent": "value"}), [home], f"Share of donations that are type {bt}, {FULL}", "genz_share")
-    fig.update_layout(xaxis_title="% of donations")
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-    st.caption(f"🔎 Evidence: blood_{bt.lower()} ÷ (blood_a + blood_b + blood_o + blood_ab), year = {FULL} · {bot.SOURCE_DONATIONS}. "
+        fig = bot.bar_chart(states_only.rename(columns={"percent": "value"}), [home], f"Share of donations that are type {bt}, {FULL}", "genz_share")
+        fig.update_layout(xaxis_title="% of donations")
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+        st.caption(f"🔎 Evidence: blood_{bt.lower()} ÷ (blood_a + blood_b + blood_o + blood_ab), year = {FULL} · {bot.SOURCE_DONATIONS}. "
                "The data has no Rh (+/−) information. · Data tidak mempunyai maklumat Rh (+/−).")
 
-    heading("Get your Donor Hero card", "Dapatkan kad Wira Penderma anda",
-            "Type your name and download a card with real facts about your blood type. A fun souvenir, not an official certificate.",
-            "Taip nama anda dan muat turun kad dengan fakta sebenar tentang jenis darah anda. Cenderahati, bukan sijil rasmi.")
-    hero_name = st.text_input("Your name · Nama anda", max_chars=24, placeholder="Amirrul")
-    if hero_name.strip():
-        card = bot.make_hero_card(data, hero_name, bt, home)
-        st.image(card, width=640)
-        st.download_button("⬇️ Download my card · Muat turun kad saya", card,
-                           file_name=f"DarahBot_{hero_name.strip().replace(' ', '_')}_{bt}.png", mime="image/png", type="primary")
+        heading("Get your Donor Hero card", "Dapatkan kad Wira Penderma anda",
+                "Type your name and download a card with real facts about your blood type. A fun souvenir, not an official certificate.",
+                "Taip nama anda dan muat turun kad dengan fakta sebenar tentang jenis darah anda. Cenderahati, bukan sijil rasmi.")
+        hero_name = st.text_input("Your name · Nama anda", max_chars=24, placeholder="Amirrul")
+        if hero_name.strip():
+            card = bot.make_hero_card(data, hero_name, bt, home)
+            st.image(card, width=640)
+            st.download_button("⬇️ Download my card · Muat turun kad saya", card,
+                               file_name=f"DarahBot_{hero_name.strip().replace(' ', '_')}_{bt}.png", mime="image/png", type="primary")
 
 # ================================================================ TILE MAP
 TILES = {"Kedah": (1, 0), "Kelantan": (2, 0), "Pulau Pinang": (0, 1), "Perak": (1, 1), "Terengganu": (2, 1),
@@ -715,245 +948,399 @@ SHORT = {"Pulau Pinang": "P.Pinang", "W.P. Kuala Lumpur": "KL", "Negeri Sembilan
 METRIC_CHOICES = {"Total donations": "donations", "Donations per 1,000 adults": "per_capita", "New donors": "new_donors",
                   "Gen Z new donors": "genz", "Gen Z share of new donors (%)": "genz_share", "Student donations": "students"}
 
-with tab_map:
-    heading("Which states give the most blood?", "Negeri mana paling banyak menderma darah?",
-            "Each square is a state, placed roughly where it sits on the map. Darker red = higher value.",
-            "Setiap petak ialah negeri, diletakkan lebih kurang seperti di peta. Merah lebih gelap = nilai lebih tinggi.")
-    a, b = st.columns([2, 1])
-    choice = a.selectbox("Measure · Ukuran", list(METRIC_CHOICES), index=1)
-    yr = b.slider("Year · Tahun", bot.FIRST_YEAR, data["latest_year"], FULL, key="map_year")
-    m = METRIC_CHOICES[choice]
-    df = bot.rank(data, m, yr)
-    df["x"] = df.state.map(lambda s: TILES[s][0])
-    df["y"] = df.state.map(lambda s: TILES[s][1])
-    df["label"] = df.apply(lambda r: f"{SHORT.get(r.state, r.state)}<br><b>{bot.fmt(r.value, m)}</b>", axis=1)
-    fig = px.scatter(df, x="x", y="y", color="value", text="label", hover_name="state",
-                     color_continuous_scale=["#FBEFF0", "#EE8E9C", "#D81F3B", "#5C0714"], labels={"value": choice})
-    dark = df["value"] > df["value"].min() + 0.45 * (df["value"].max() - df["value"].min())
-    fig.update_traces(marker=dict(symbol="square", size=86, line=dict(width=3, color="#FBF6F4")),
-                      textfont=dict(color=["white" if d else "#2B0F13" for d in dark], family="Inter"))
-    fig.update_xaxes(visible=False, range=[-0.7, 6.5])
-    fig.update_yaxes(visible=False, autorange="reversed", range=[-0.7, 4.7])
-    fig.update_layout(height=520, margin=dict(l=0, r=0, t=10, b=0))
-    fig.add_annotation(x=1, y=-0.6, text="Peninsular Malaysia", showarrow=False, font_color="#8D7476")
-    fig.add_annotation(x=5.2, y=1.3, text="Borneo", showarrow=False, font_color="#8D7476")
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-    top, low = df.iloc[0], df.iloc[-1]
-    st.markdown(f'<div class="card">🏆 <b>{top.state}</b> is highest ({bot.fmt(top.value, m)}), <b>{low.state}</b> is lowest ({bot.fmt(low.value, m)}).'
+if show("map"):
+    with section("map"):
+        heading("Which states give the most blood?", "Negeri mana paling banyak menderma darah?",
+                "Each square is a state, placed roughly where it sits on the map. Darker red = higher value.",
+                "Setiap petak ialah negeri, diletakkan lebih kurang seperti di peta. Merah lebih gelap = nilai lebih tinggi.")
+        a, b = st.columns([2, 1])
+        choice = a.selectbox("Measure · Ukuran", list(METRIC_CHOICES), index=1)
+        yr = b.slider("Year · Tahun", bot.FIRST_YEAR, data["latest_year"], FULL, key="map_year")
+        m = METRIC_CHOICES[choice]
+        df = bot.rank(data, m, yr)
+        df["x"] = df.state.map(lambda s: TILES[s][0])
+        df["y"] = df.state.map(lambda s: TILES[s][1])
+        df["label"] = df.apply(lambda r: f"{SHORT.get(r.state, r.state)}<br><b>{bot.fmt(r.value, m)}</b>", axis=1)
+        fig = px.scatter(df, x="x", y="y", color="value", text="label", hover_name="state",
+                         color_continuous_scale=["#FBEFF0", "#EE8E9C", "#D81F3B", "#5C0714"], labels={"value": choice})
+        dark = df["value"] > df["value"].min() + 0.45 * (df["value"].max() - df["value"].min())
+        fig.update_traces(marker=dict(symbol="square", size=86, line=dict(width=3, color="#FBF6F4")),
+                          textfont=dict(color=["white" if d else "#2B0F13" for d in dark], family="Inter"))
+        fig.update_xaxes(visible=False, range=[-0.7, 6.5])
+        fig.update_yaxes(visible=False, autorange="reversed", range=[-0.7, 4.7])
+        fig.update_layout(height=520, margin=dict(l=0, r=0, t=10, b=0))
+        fig.add_annotation(x=1, y=-0.6, text="Peninsular Malaysia", showarrow=False, font_color="#8D7476")
+        fig.add_annotation(x=5.2, y=1.3, text="Borneo", showarrow=False, font_color="#8D7476")
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+        top, low = df.iloc[0], df.iloc[-1]
+        st.markdown(f'<div class="card">🏆 <b>{top.state}</b> is highest ({bot.fmt(top.value, m)}), <b>{low.state}</b> is lowest ({bot.fmt(low.value, m)}).'
                 f'{bot.year_note(data, yr)}<span class="ms">{top.state} paling tinggi, {low.state} paling rendah.</span></div>', unsafe_allow_html=True)
-    if m == "per_capita":
-        st.caption("Per 1,000 adults uses DOSM 2020 population. KL scores very high partly because people from Selangor donate at KL hospitals.")
+        if m == "per_capita":
+            st.caption("Per 1,000 adults uses DOSM 2020 population. KL scores very high partly because people from Selangor donate at KL hospitals.")
 
 # ================================================================ HOSPITALS
-with tab_hosp:
-    heading("Which blood bank collects the most?", "Bank darah mana paling banyak kumpul?",
-            "22 government blood banks. Each hospital is matched to its state, and the hospital totals add up exactly to each state's total.",
-            "22 bank darah kerajaan. Setiap hospital dipadankan dengan negerinya, dan jumlahnya sama tepat dengan jumlah negeri.")
-    a, b, c = st.columns(3)
-    hs = a.selectbox("State · Negeri", ["All of Malaysia"] + data["states"], key="h_state")
-    hy = b.slider("Year · Tahun", bot.FIRST_YEAR, data["latest_year"], FULL, key="h_year")
-    hm_choices = {"Total donations": "daily", "Student donations": "social_student",
-                  "Mobile drives": "location_mobile", "New donors' donations": "donations_new"}
-    hm = c.selectbox("Measure · Ukuran", list(hm_choices), key="h_metric")
-    hr = bot.hospital_ranking(data, hy, hm_choices[hm], None if hs == "All of Malaysia" else hs)
-    if hr.empty:
-        st.warning("No hospital data for this choice. · Tiada data hospital untuk pilihan ini.")
-    else:
-        top = hr.iloc[0]
-        st.markdown(f'<div class="card">🏆 <b>{top["hospital"]}</b> ({top["state"]}): <b>{top["value"]:,.0f}</b>{bot.year_note(data, hy)}</div>',
-                    unsafe_allow_html=True)
-        hr2 = hr.copy()
-        hr2["colour"] = ["top" if i == 0 else "other" for i in range(len(hr2))]
-        fig = px.bar(hr2, x="value", y="hospital", orientation="h", color="colour", text=hr2["value"].map("{:,.0f}".format),
-                     color_discrete_map={"top": bot.RED, "other": bot.PINK}, hover_data=["state"],
-                     labels={"value": hm, "hospital": ""}, height=max(300, 32 * len(hr2)))
-        fig.update_layout(yaxis={"categoryorder": "total ascending"}, margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
-        fig.update_traces(textposition="outside", cliponaxis=False)
-        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-        st.caption(f"🔎 Evidence: {hm_choices[hm]}, year = {hy} · {bot.SOURCE_FACILITY}. "
+if show("hosp"):
+    with section("hosp"):
+        heading("Which blood bank collects the most?", "Bank darah mana paling banyak kumpul?",
+                "22 government blood banks. Each hospital is matched to its state, and the hospital totals add up exactly to each state's total.",
+                "22 bank darah kerajaan. Setiap hospital dipadankan dengan negerinya, dan jumlahnya sama tepat dengan jumlah negeri.")
+        a, b, c = st.columns(3)
+        hs = a.selectbox("State · Negeri", ["All of Malaysia"] + data["states"], key="h_state")
+        hy = b.slider("Year · Tahun", bot.FIRST_YEAR, data["latest_year"], FULL, key="h_year")
+        hm_choices = {"Total donations": "daily", "Student donations": "social_student",
+                      "Mobile drives": "location_mobile", "New donors' donations": "donations_new"}
+        hm = c.selectbox("Measure · Ukuran", list(hm_choices), key="h_metric")
+        hr = bot.hospital_ranking(data, hy, hm_choices[hm], None if hs == "All of Malaysia" else hs)
+        if hr.empty:
+            st.warning("No hospital data for this choice. · Tiada data hospital untuk pilihan ini.")
+        else:
+            top = hr.iloc[0]
+            st.markdown(f'<div class="card">🏆 <b>{top["hospital"]}</b> ({top["state"]}): <b>{top["value"]:,.0f}</b>{bot.year_note(data, hy)}</div>',
+                        unsafe_allow_html=True)
+            hr2 = hr.copy()
+            hr2["colour"] = ["top" if i == 0 else "other" for i in range(len(hr2))]
+            fig = px.bar(hr2, x="value", y="hospital", orientation="h", color="colour", text=hr2["value"].map("{:,.0f}".format),
+                         color_discrete_map={"top": bot.RED, "other": bot.PINK}, hover_data=["state"],
+                         labels={"value": hm, "hospital": ""}, height=max(300, 32 * len(hr2)))
+            fig.update_layout(yaxis={"categoryorder": "total ascending"}, margin=dict(l=10, r=10, t=10, b=10), showlegend=False)
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+            st.caption(f"🔎 Evidence: {hm_choices[hm]}, year = {hy} · {bot.SOURCE_FACILITY}. "
                    "Pusat Darah Negara is in Kuala Lumpur, which is why KL's total is so high. · Pusat Darah Negara terletak di KL, sebab itu jumlah KL sangat tinggi.")
 
 # ================================================================ CALENDAR
-with tab_cal:
-    heading("Blood calendar", "Kalendar darah",
-            "Every square is one day. Darker = more donations. Spot the busy weekends and the quiet holidays!",
-            "Setiap petak ialah satu hari. Lebih gelap = lebih banyak derma. Cari hujung minggu yang sibuk dan cuti yang sunyi!")
-    a, b = st.columns(2)
-    cs = a.selectbox("State · Negeri", ["Malaysia"] + data["states"], key="cal_state")
-    cy = b.selectbox("Year · Tahun", list(range(FULL, bot.FIRST_YEAR - 1, -1)), key="cal_year")
-    cal = bot.daily_calendar(data, cs, cy)
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    grid = cal.pivot_table(index="weekday", columns="week", values="daily", aggfunc="sum")
-    dates = cal.pivot_table(index="weekday", columns="week", values="date", aggfunc="first")
-    fig = px.imshow(grid.values, x=grid.columns, y=[days[i] for i in grid.index], aspect="auto",
-                    color_continuous_scale=["#FBEFF0", "#EE8E9C", "#D81F3B", "#5C0714"], labels={"color": "donations"})
-    fig.update_traces(customdata=dates.reindex_like(grid).map(lambda v: f"{v:%d %b %Y}" if pd.notna(v) else "").values,
-                      hovertemplate="%{customdata}<br>%{z:,} donations<extra></extra>", xgap=3, ygap=3)
-    fig.update_layout(height=290, xaxis_title="week of the year · minggu", margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-    top3 = cal.nlargest(3, "daily")
-    low3 = cal.nsmallest(3, "daily")
-    l, r = st.columns(2)
-    l.markdown(f'<div class="card"><div class="h3">{B("🔥 Busiest days", "Hari paling sibuk")}</div>' +
-               "".join(f"<div>{d:%a %d %b}: <b>{v:,}</b></div>" for d, v in zip(top3.date, top3.daily)) + "</div>", unsafe_allow_html=True)
-    r.markdown(f'<div class="card"><div class="h3">{B("🧊 Quietest days", "Hari paling sunyi")}</div>' +
-               "".join(f"<div>{d:%a %d %b}: <b>{v:,}</b></div>" for d, v in zip(low3.date, low3.daily)) + "</div>", unsafe_allow_html=True)
-    st.caption(f"🔎 Evidence: daily, state = {cs}, year = {cy} · {bot.SOURCE_DONATIONS}")
+if show("cal"):
+    with section("cal"):
+        heading("Blood calendar", "Kalendar darah",
+                "Every square is one day. Darker = more donations. Spot the busy weekends and the quiet holidays!",
+                "Setiap petak ialah satu hari. Lebih gelap = lebih banyak derma. Cari hujung minggu yang sibuk dan cuti yang sunyi!")
+        a, b = st.columns(2)
+        cs = a.selectbox("State · Negeri", ["Malaysia"] + data["states"], key="cal_state")
+        cy = b.selectbox("Year · Tahun", list(range(FULL, bot.FIRST_YEAR - 1, -1)), key="cal_year")
+        cal = bot.daily_calendar(data, cs, cy)
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        grid = cal.pivot_table(index="weekday", columns="week", values="daily", aggfunc="sum")
+        dates = cal.pivot_table(index="weekday", columns="week", values="date", aggfunc="first")
+        fig = px.imshow(grid.values, x=grid.columns, y=[days[i] for i in grid.index], aspect="auto",
+                        color_continuous_scale=["#FBEFF0", "#EE8E9C", "#D81F3B", "#5C0714"], labels={"color": "donations"})
+        fig.update_traces(customdata=dates.reindex_like(grid).map(lambda v: f"{v:%d %b %Y}" if pd.notna(v) else "").values,
+                          hovertemplate="%{customdata}<br>%{z:,} donations<extra></extra>", xgap=3, ygap=3)
+        fig.update_layout(height=290, xaxis_title="week of the year · minggu", margin=dict(l=10, r=10, t=10, b=10))
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+        top3 = cal.nlargest(3, "daily")
+        low3 = cal.nsmallest(3, "daily")
+        l, r = st.columns(2)
+        l.markdown(f'<div class="card"><div class="h3">{B("🔥 Busiest days", "Hari paling sibuk")}</div>' +
+                   "".join(f"<div>{d:%a %d %b}: <b>{v:,}</b></div>" for d, v in zip(top3.date, top3.daily)) + "</div>", unsafe_allow_html=True)
+        r.markdown(f'<div class="card"><div class="h3">{B("🧊 Quietest days", "Hari paling sunyi")}</div>' +
+                   "".join(f"<div>{d:%a %d %b}: <b>{v:,}</b></div>" for d, v in zip(low3.date, low3.daily)) + "</div>", unsafe_allow_html=True)
+        st.caption(f"🔎 Evidence: daily, state = {cs}, year = {cy} · {bot.SOURCE_DONATIONS}")
 
-    heading("What happens on festival days?", "Apa berlaku pada hari perayaan?",
-            "Donations on the first day of each festival, compared with a normal day (median of the 2 weeks before and after).",
-            "Derma pada hari pertama setiap perayaan, berbanding hari biasa (median 2 minggu sebelum dan selepas).")
-    fest = st.radio("Festival · Perayaan", list(bot.FESTIVALS), horizontal=True)
-    fe = bot.festive_effect(data, fest, cs)
-    fig = px.bar(fe, x="year", y=["normal day", "on the day"], barmode="group",
-                 color_discrete_map={"normal day": bot.GREY, "on the day": bot.RED},
-                 labels={"value": "donations · derma", "variable": ""}, title=f"{fest}: {cs}")
-    fig.update_layout(height=340, margin=dict(l=10, r=10, t=60, b=10))
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
-    med = fe["change %"].median()
-    st.markdown(f'<div class="card">{B(f"Typical change on <b>{fest}</b>: <b>{med:+.0f}%</b> compared with a normal day ({len(fe)} years, 2015–2025).", f"Perubahan biasa pada <b>{fest}</b>: <b>{med:+.0f}%</b> berbanding hari biasa ({len(fe)} tahun, 2015–2025).")}</div>',
-                unsafe_allow_html=True)
-    if fest == "Hari Raya Aidilfitri":
-        ra = bot.ramadan_effect(data, cs)
-        rmed = ra["change %"].median()
-        rtxt = B(f"During <b>Ramadan</b> (the 29 days before Raya), average daily donations were <b>{rmed:+.0f}%</b> compared with the month before (median 2015–2025).",
-                 f"Semasa <b>Ramadan</b> (29 hari sebelum Raya), purata derma harian ialah <b>{rmed:+.0f}%</b> berbanding bulan sebelumnya (median 2015–2025).")
-        st.markdown('<div class="card">🌙 ' + rtxt + '</div>', unsafe_allow_html=True)
-        with st.expander("Ramadan numbers by year · Angka Ramadan mengikut tahun"):
-            st.dataframe(ra.round(1), width="stretch", hide_index=True)
-    st.caption("Festival dates come from the Malaysian public holiday calendar. The data shows the pattern, not the reason. · "
+        heading("What happens on festival days?", "Apa berlaku pada hari perayaan?",
+                "Donations on the first day of each festival, compared with a normal day (median of the 2 weeks before and after).",
+                "Derma pada hari pertama setiap perayaan, berbanding hari biasa (median 2 minggu sebelum dan selepas).")
+        fest = st.radio("Festival · Perayaan", list(bot.FESTIVALS), horizontal=True)
+        fe = bot.festive_effect(data, fest, cs)
+        fig = px.bar(fe, x="year", y=["normal day", "on the day"], barmode="group",
+                     color_discrete_map={"normal day": bot.GREY, "on the day": bot.RED},
+                     labels={"value": "donations · derma", "variable": ""}, title=f"{fest}: {cs}")
+        fig.update_layout(height=340, margin=dict(l=10, r=10, t=60, b=10))
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+        med = fe["change %"].median()
+        st.markdown(f'<div class="card">{B(f"Typical change on <b>{fest}</b>: <b>{med:+.0f}%</b> compared with a normal day ({len(fe)} years, 2015–2025).", f"Perubahan biasa pada <b>{fest}</b>: <b>{med:+.0f}%</b> berbanding hari biasa ({len(fe)} tahun, 2015–2025).")}</div>',
+                    unsafe_allow_html=True)
+        if fest == "Hari Raya Aidilfitri":
+            ra = bot.ramadan_effect(data, cs)
+            rmed = ra["change %"].median()
+            rtxt = B(f"During <b>Ramadan</b> (the 29 days before Raya), average daily donations were <b>{rmed:+.0f}%</b> compared with the month before (median 2015–2025).",
+                     f"Semasa <b>Ramadan</b> (29 hari sebelum Raya), purata derma harian ialah <b>{rmed:+.0f}%</b> berbanding bulan sebelumnya (median 2015–2025).")
+            st.markdown('<div class="card">🌙 ' + rtxt + '</div>', unsafe_allow_html=True)
+            with st.expander("Ramadan numbers by year · Angka Ramadan mengikut tahun"):
+                st.dataframe(ra.round(1), width="stretch", hide_index=True)
+        st.caption("Festival dates come from the Malaysian public holiday calendar. The data shows the pattern, not the reason. · "
                "Tarikh perayaan daripada kalendar cuti umum Malaysia. Data menunjukkan corak, bukan sebabnya.")
-    with st.expander("🧾 Exact numbers · Angka tepat"):
-        st.dataframe(fe.assign(date=fe["date"].dt.date).round(1), width="stretch", hide_index=True)
+        with st.expander("🧾 Exact numbers · Angka tepat"):
+            st.dataframe(fe.assign(date=fe["date"].dt.date).round(1), width="stretch", hide_index=True)
 
 # ================================================================ TIME MACHINE
-with tab_time:
-    heading("Press play and watch 20 years of donations", "Tekan main dan lihat 20 tahun derma",
-            "Each bar is a state. The partial latest year is left out so the comparison is fair.",
-            "Setiap bar ialah negeri. Tahun terkini yang belum lengkap tidak dimasukkan supaya perbandingan adil.")
-    choice_t = st.selectbox("Measure · Ukuran", list(METRIC_CHOICES), index=0, key="time_metric")
-    mt = METRIC_CHOICES[choice_t]
-    dt = bot.yearly_values(data, mt)
-    dt = dt[(dt.state != "Malaysia") & (dt.year <= FULL)]
-    fig = px.bar(dt, x="value", y="state", animation_frame="year", orientation="h", color="value",
-                 color_continuous_scale=["#F7CDD3", "#D81F3B", "#5C0714"], range_x=[0, dt.value.max() * 1.1],
-                 labels={"value": choice_t, "state": ""})
-    fig.update_layout(height=540, yaxis={"categoryorder": "total ascending"}, coloraxis_showscale=False)
-    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
+if show("time"):
+    with section("time"):
+        heading("Press play and watch 20 years of donations", "Tekan main dan lihat 20 tahun derma",
+                "Each bar is a state. The partial latest year is left out so the comparison is fair.",
+                "Setiap bar ialah negeri. Tahun terkini yang belum lengkap tidak dimasukkan supaya perbandingan adil.")
+        choice_t = st.selectbox("Measure · Ukuran", list(METRIC_CHOICES), index=0, key="time_metric")
+        mt = METRIC_CHOICES[choice_t]
+        dt = bot.yearly_values(data, mt)
+        dt = dt[(dt.state != "Malaysia") & (dt.year <= FULL)]
+        fig = px.bar(dt, x="value", y="state", animation_frame="year", orientation="h", color="value",
+                     color_continuous_scale=["#F7CDD3", "#D81F3B", "#5C0714"], range_x=[0, dt.value.max() * 1.1],
+                     labels={"value": choice_t, "state": ""})
+        fig.update_layout(height=540, yaxis={"categoryorder": "total ascending"}, coloraxis_showscale=False)
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False}, theme=None)
 
 # ================================================================ GEN Z STORY
-with tab_story:
-    heading("Darah Muda, Semakin Kurang?", "Is the young generation stepping back from blood donation?",
-            "Gen Z here means first-time donors aged 17–24.", "Gen Z di sini bermaksud penderma kali pertama berumur 17–24.")
-    states_pick = st.multiselect("Compare · Bandingkan", ["Malaysia"] + data["states"], default=["Malaysia", "Melaka"])
-    gz = bot.yearly_values(data, "genz", states_pick)
-    gz = gz[gz.year <= FULL]
-    share = bot.yearly_values(data, "genz_share", states_pick)
-    share = share[share.year <= FULL]
-    l, r = st.columns(2)
-    base = gz[gz.year == 2019].set_index("state")["value"]
-    idx = gz.copy()
-    idx["value"] = idx["value"] / idx["state"].map(base) * 100
-    fig_idx = bot.line_chart(idx, "Gen Z new donors, indexed (2019 = 100)", "genz")
-    fig_idx.update_layout(yaxis_title="2019 = 100")
-    fig_idx.add_hline(y=100, line_dash="dot", line_color="#8D7476")
-    l.plotly_chart(fig_idx, width="stretch", config={"displayModeBar": False}, theme=None)
-    l.caption("Indexing lets a small state and the whole country share one scale: 50 means half of the 2019 level.")
-    r.plotly_chart(bot.line_chart(share, "Gen Z as % of all new donors", "genz_share"), width="stretch", config={"displayModeBar": False}, theme=None)
-    rows_html = ""
-    for s_ in states_pick:
-        v19 = gz[(gz.state == s_) & (gz.year == 2019)]["value"]
-        vf = gz[(gz.state == s_) & (gz.year == FULL)]["value"]
-        if not v19.empty and not vf.empty:
-            chg = (vf.iloc[0] - v19.iloc[0]) / v19.iloc[0] * 100
-            rows_html += f"<div><b>{s_}:</b> {v19.iloc[0]:,.0f} Gen Z new donors in 2019 → <b>{vf.iloc[0]:,.0f}</b> in {FULL} (<b>{chg:+.1f}%</b>)</div>"
-    if rows_html:
-        st.markdown(f'<div class="card">{rows_html}</div>', unsafe_allow_html=True)
-    st.caption("The data shows what changed. It cannot tell us why (e.g. COVID-19, campus campaigns). · Data menunjukkan apa yang berubah, bukan sebabnya.")
+if show("story"):
+    with section("story"):
+        heading("Darah Muda, Semakin Kurang?", "Is the young generation stepping back from blood donation?",
+                "Gen Z here means first-time donors aged 17–24.", "Gen Z di sini bermaksud penderma kali pertama berumur 17–24.")
+        states_pick = st.multiselect("Compare · Bandingkan", ["Malaysia"] + data["states"], default=["Malaysia", "Melaka"])
+        gz = bot.yearly_values(data, "genz", states_pick)
+        gz = gz[gz.year <= FULL]
+        share = bot.yearly_values(data, "genz_share", states_pick)
+        share = share[share.year <= FULL]
+        l, r = st.columns(2)
+        base = gz[gz.year == 2019].set_index("state")["value"]
+        idx = gz.copy()
+        idx["value"] = idx["value"] / idx["state"].map(base) * 100
+        fig_idx = bot.line_chart(idx, "Gen Z new donors, indexed (2019 = 100)", "genz")
+        fig_idx.update_layout(yaxis_title="2019 = 100")
+        fig_idx.add_hline(y=100, line_dash="dot", line_color="#8D7476")
+        l.plotly_chart(fig_idx, width="stretch", config={"displayModeBar": False}, theme=None)
+        l.caption("Indexing lets a small state and the whole country share one scale: 50 means half of the 2019 level.")
+        r.plotly_chart(bot.line_chart(share, "Gen Z as % of all new donors", "genz_share"), width="stretch", config={"displayModeBar": False}, theme=None)
+        rows_html = ""
+        for s_ in states_pick:
+            v19 = gz[(gz.state == s_) & (gz.year == 2019)]["value"]
+            vf = gz[(gz.state == s_) & (gz.year == FULL)]["value"]
+            if not v19.empty and not vf.empty:
+                chg = (vf.iloc[0] - v19.iloc[0]) / v19.iloc[0] * 100
+                rows_html += f"<div><b>{s_}:</b> {v19.iloc[0]:,.0f} Gen Z new donors in 2019 → <b>{vf.iloc[0]:,.0f}</b> in {FULL} (<b>{chg:+.1f}%</b>)</div>"
+        if rows_html:
+            st.markdown(f'<div class="card">{rows_html}</div>', unsafe_allow_html=True)
+        st.caption("The data shows what changed. It cannot tell us why (e.g. COVID-19, campus campaigns). · Data menunjukkan apa yang berubah, bukan sebabnya.")
+
+# ================================================================ QUIZ & PRIZE
+QUIZ_N, PRIZE_AT = 10, 8
+
+
+@st.cache_resource
+def get_questions():
+    return {q["id"]: q for q in quiz.build_questions(get_data())}
+
+
+@st.cache_resource
+def get_pool():
+    """Shared by every visitor: the next person never gets the same questions until all are used."""
+    return quiz.QuestionPool(list(get_questions()), os.path.join(tempfile.gettempdir(), "darahbot_quiz_used.json"))
+
+
+def quiz_reset():
+    st.session_state.qz = {"stage": "start"}
+
+
+if show("quiz"):
+    with section("quiz"):
+        QS = get_questions()
+        if "qz" not in st.session_state:
+            quiz_reset()
+        qz = st.session_state.qz
+        if qz["stage"] == "start":
+            heading("Blood Quiz: win a prize!", "Kuiz Darah: menangi hadiah!",
+                    f"{QUIZ_N} questions from real KKM data and donor rules. Score {PRIZE_AT} or more to win a present. "
+                    "You don't need the exact number: close answers count.",
+                    f"{QUIZ_N} soalan daripada data sebenar KKM dan syarat penderma. Dapat {PRIZE_AT} ke atas untuk hadiah. "
+                    "Tidak perlu nombor tepat: jawapan hampir betul dikira betul.")
+            st.markdown(f'''<div class="quiz-start">
+<div><b>{QUIZ_N}</b><span>{B("questions", "soalan")}</span></div>
+<div><b>{PRIZE_AT}+</b><span>{B("to win", "untuk menang")}</span></div>
+<div><b>{len(QS)}</b><span>{B("question bank", "bank soalan")}</span></div></div>''', unsafe_allow_html=True)
+            name = st.text_input("Your name · Nama anda", max_chars=24, placeholder="e.g. Aina", key="quiz_name")
+            if st.button("Start the quiz · Mula kuiz", type="primary", width="stretch"):
+                st.session_state.qz = {"stage": "q", "ids": get_pool().draw(QUIZ_N), "i": 0, "res": [], "name": name.strip(),
+                                       "checked": None}
+                st.rerun()
+            st.caption(f"Questions are picked at random and not repeated for the next person "
+                       f"({get_pool().remaining()} fresh questions left in this round).")
+
+        elif qz["stage"] == "q":
+            q = QS[qz["ids"][qz["i"]]]
+            n_done = len(qz["res"])
+            score = sum(1 for r in qz["res"] if r[1] in ("correct", "close"))
+            st.markdown(f'''<div class="quiz-top"><span>Question {qz["i"] + 1} / {QUIZ_N}</span><span>Score {score}</span></div>
+<div class="quiz-bar"><i style="width:{qz["i"] / QUIZ_N * 100:.0f}%"></i></div>
+<div class="card quiz-q"><div class="h3">{html.escape(q["en"])}<span class="ms">{html.escape(q["ms"])}</span></div></div>''',
+                        unsafe_allow_html=True)
+            if qz["checked"] is None:
+                with st.form(f"qf_{qz['i']}", clear_on_submit=False, border=False):
+                    ans = st.text_input("Your answer · Jawapan anda", key=f"qa_{qz['ids'][qz['i']]}",
+                                        placeholder={"num": "a number, e.g. 590k or 45", "state": "a state, e.g. Johor",
+                                                     "bool": "yes / no · ya / tidak"}.get(q["kind"], "your answer"))
+                    sent = st.form_submit_button("Check answer · Semak", type="primary", width="stretch")
+                if q["hint"]:
+                    with st.expander("💡 Hint · Petunjuk"):
+                        st.write(f"{q['hint']}  \n_{q['hint_ms']}_")
+                if sent:
+                    res, msg = quiz.check(ans, q, data["states"])
+                    qz["res"].append((ans, res))
+                    qz["checked"] = (ans, res, msg)
+                    st.rerun()
+            else:
+                ans, res, msg = qz["checked"]
+                good = res in ("correct", "close")
+                st.markdown(f'''<div class="quiz-fb {"ok" if good else "no"}">
+<b>{"✓ " + ("Correct!" if res == "correct" else "Close enough, counted correct!") if good else "✗ Not quite"}</b>
+<span>{B("Your answer: " + html.escape(ans or "–"), "Jawapan anda")}</span>
+<span>{B("Answer: <b>" + html.escape(q["show"]) + "</b>", "Jawapan sebenar")}</span>
+<small>🔎 {html.escape(q["source"])}</small></div>''', unsafe_allow_html=True)
+                last = qz["i"] == QUIZ_N - 1
+                if st.button("See my score · Lihat markah" if last else "Next question · Soalan seterusnya", type="primary", width="stretch"):
+                    qz["checked"] = None
+                    if last:
+                        qz["stage"] = "done"
+                    else:
+                        qz["i"] += 1
+                    st.rerun()
+            st.iframe("<script>window.parent.document.querySelector('.quiz-top')?.scrollIntoView({behavior:'smooth',block:'start'});</script>", height=1)
+
+        else:  # done
+            score = sum(1 for r in qz["res"] if r[1] in ("correct", "close"))
+            win = score >= PRIZE_AT
+            who = html.escape(qz.get("name") or "")
+            if win and not qz.get("celebrated"):
+                st.balloons()
+                qz["celebrated"] = True
+                qz["code"] = f"DB-{random.randint(1000, 9999)}"
+            st.markdown(f'''<div class="quiz-score {"win" if win else ""}">
+<div class="big">{score}<span>/{QUIZ_N}</span></div>
+<div class="h3">{B(("🏆 Congratulations" + (", " + who if who else "") + "! You win a present!") if win else ("Well done" + (", " + who if who else "") + "!"),
+                  "Tahniah! Anda menang hadiah!" if win else "Syabas!")}</div>
+<p>{B("Show this screen to Amirrul or Ayuni at the booth to collect your prize." if win else f"You needed {PRIZE_AT} to win a prize. Try again later, the next round has new questions!",
+      "Tunjukkan skrin ini kepada Amirrul atau Ayuni di booth untuk menuntut hadiah." if win else f"Perlu {PRIZE_AT} untuk hadiah. Cuba lagi nanti, soalan baru menanti!")}</p>
+{f'<div class="prize-code">Prize code · Kod hadiah: <b>{qz["code"]}</b></div>' if win else ""}</div>''', unsafe_allow_html=True)
+            with st.expander("📝 See all answers · Lihat semua jawapan"):
+                for k, (qid, (a, r)) in enumerate(zip(qz["ids"], qz["res"]), 1):
+                    qq = QS[qid]
+                    st.markdown(f"**{k}. {qq['en']}**  \n{'✅' if r in ('correct', 'close') else '❌'} you said: _{a or '–'}_ · answer: **{qq['show']}**")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("📸 Take a memory photo · Ambil gambar", type="primary", width="stretch"):
+                    st.session_state.photo_name = qz.get("name") or ""
+                    st.session_state.photo_score = score
+                    st.session_state.cam_on = True
+                    st.session_state.go = "photo"
+                    st.rerun()
+            with c2:
+                if st.button("🔁 Next person · Orang seterusnya", width="stretch"):
+                    quiz_reset()
+                    st.session_state.pop("quiz_name", None)
+                    st.rerun()
+
+# ================================================================ PHOTO BOOTH
+if show("photo"):
+    with section("photo"):
+        heading("Photo booth", "Booth gambar",
+                "Take a memory photo with the DarahBot frame. Stand in front of our banner, smile, and download your picture!",
+                "Ambil gambar kenangan dengan bingkai DarahBot. Berdiri di depan banner kami, senyum, dan muat turun gambar anda!")
+        pname = st.text_input("Name on the photo · Nama pada gambar", value=st.session_state.get("photo_name", ""), max_chars=24)
+        if not st.session_state.get("cam_on"):
+            if st.button("📷 Open the camera · Buka kamera", type="primary", width="stretch"):
+                st.session_state.cam_on = True
+                st.rerun()
+            st.caption("The camera only opens when you press the button. On iPad/iPhone, allow camera access when asked.")
+        else:
+            shot = st.camera_input("Smile! · Senyum!", key="cam")
+            if shot is not None:
+                sc = st.session_state.get("photo_score")
+                framed = photoframe.make_frame(shot.getvalue(), pname, sc, QUIZ_N if sc is not None else None,
+                                               qr_png("https://darahbot.streamlit.app"))
+                st.image(framed, width="stretch")
+                st.download_button("⬇️ Download my photo · Muat turun gambar", framed,
+                                   file_name=f"DarahBot_{(pname or 'memory').replace(' ', '_')}.jpg", mime="image/jpeg",
+                                   type="primary", width="stretch")
+                st.caption("Tip: on iPad/iPhone, press and hold the photo above and choose “Save to Photos”. "
+                           "Or scan the QR on the photo to try DarahBot.")
+            if st.button("Close camera · Tutup kamera", width="stretch"):
+                st.session_state.cam_on = False
+                for k in ("photo_score", "photo_name"):
+                    st.session_state.pop(k, None)
+                st.rerun()
 
 # ================================================================ GAME
-with tab_game:
-    heading("Guess the number", "Teka nombor", "Guess first, then let the data reveal the truth!", "Teka dulu, kemudian biar data dedahkan jawapan!")
-    if "game" not in st.session_state or st.button("🎲 New question · Soalan baru"):
-        s_ = random.choice(data["states"])
-        y_ = random.randint(2012, FULL)
-        gm = random.choice(["donations", "new_donors", "genz"])
-        st.session_state.game = {"state": s_, "year": y_, "metric": gm, "answer": bot.lookup(data, gm, s_, y_), "revealed": False}
-    g = st.session_state.game
-    label = bot.METRICS[g["metric"]][2]
-    st.markdown(f'<div class="card"><div class="h3">How many <span style="color:var(--blood)">{label}</span> were there in <b>{g["state"]}</b> in <b>{g["year"]}</b>?</div>'
+if show("game"):
+    with section("game"):
+        heading("Guess the number", "Teka nombor", "Guess first, then let the data reveal the truth!", "Teka dulu, kemudian biar data dedahkan jawapan!")
+        if "game" not in st.session_state or st.button("🎲 New question · Soalan baru"):
+            s_ = random.choice(data["states"])
+            y_ = random.randint(2012, FULL)
+            gm = random.choice(["donations", "new_donors", "genz"])
+            st.session_state.game = {"state": s_, "year": y_, "metric": gm, "answer": bot.lookup(data, gm, s_, y_), "revealed": False}
+        g = st.session_state.game
+        label = bot.METRICS[g["metric"]][2]
+        st.markdown(f'<div class="card"><div class="h3">How many <span style="color:var(--blood)">{label}</span> were there in <b>{g["state"]}</b> in <b>{g["year"]}</b>?</div>'
                 f'<span class="ms">Berapa {bot.BM_LABELS.get(label, label)} di {g["state"]} pada {g["year"]}?</span></div>', unsafe_allow_html=True)
-    guess = st.number_input("Your guess · Tekaan anda", min_value=0, step=500, value=0)
-    if st.button("Reveal the answer · Dedahkan jawapan", type="primary"):
-        g["revealed"] = True
-    if g["revealed"]:
-        ans = g["answer"]
-        off = abs(guess - ans) / ans * 100 if ans else 0
-        st.markdown(f'<div class="card"><div class="big-num">{ans:,.0f}</div>{B(f"Real answer · your guess was {off:.0f}% off", f"Jawapan sebenar · tekaan anda tersasar {off:.0f}%")}</div>',
-                    unsafe_allow_html=True)
-        if off <= 10:
-            st.balloons()
-            st.success("Amazing! Within 10%. You're a data expert 🩸 · Hebat! Dalam lingkungan 10%.")
-        elif off <= 30:
-            st.info("Not bad! Within 30%. · Boleh tahan! Dalam lingkungan 30%.")
-        else:
-            st.warning("Quite far! That's why we check the data instead of guessing. · Jauh lagi! Sebab itu kita semak data, bukan meneka.")
-        st.caption(f"Evidence: {bot.METRICS[g['metric']][1]} · state = {g['state']} · year = {g['year']} · {bot.METRICS[g['metric']][4]}")
+        guess = st.number_input("Your guess · Tekaan anda", min_value=0, step=500, value=0)
+        if st.button("Reveal the answer · Dedahkan jawapan", type="primary"):
+            g["revealed"] = True
+        if g["revealed"]:
+            ans = g["answer"]
+            off = abs(guess - ans) / ans * 100 if ans else 0
+            st.markdown(f'<div class="card"><div class="big-num">{ans:,.0f}</div>{B(f"Real answer · your guess was {off:.0f}% off", f"Jawapan sebenar · tekaan anda tersasar {off:.0f}%")}</div>',
+                        unsafe_allow_html=True)
+            if off <= 10:
+                st.balloons()
+                st.success("Amazing! Within 10%. You're a data expert 🩸 · Hebat! Dalam lingkungan 10%.")
+            elif off <= 30:
+                st.info("Not bad! Within 30%. · Boleh tahan! Dalam lingkungan 30%.")
+            else:
+                st.warning("Quite far! That's why we check the data instead of guessing. · Jauh lagi! Sebab itu kita semak data, bukan meneka.")
+            st.caption(f"Evidence: {bot.METRICS[g['metric']][1]} · state = {g['state']} · year = {g['year']} · {bot.METRICS[g['metric']][4]}")
 
 # ================================================================ EXHIBITION MODE
-with tab_show:
-    heading("Exhibition mode", "Mod pameran",
-            "Turn this on when nobody is typing. It shows a new fact or chart every 8 seconds. Tip: hide the sidebar and go full screen.",
-            "Hidupkan bila tiada pelawat menaip. Fakta atau carta baru setiap 8 saat. Tip: sembunyikan sidebar dan guna skrin penuh.")
-    if st.toggle("▶ Start the slideshow · Mula tayangan", key="show_on"):
+if show("show"):
+    with section("show"):
+        heading("Exhibition mode", "Mod pameran",
+                "Turn this on when nobody is typing. It shows a new fact or chart every 8 seconds. Tip: hide the sidebar and go full screen.",
+                "Hidupkan bila tiada pelawat menaip. Fakta atau carta baru setiap 8 saat. Tip: sembunyikan sidebar dan guna skrin penuh.")
+        if st.toggle("▶ Start the slideshow · Mula tayangan", key="show_on"):
 
-        @st.fragment(run_every=8)
-        def slideshow():
-            slides = [("fact", f) for f in FACTS] + [("chart", k) for k in ("rank", "genz", "types", "festive", "survey")]
-            kind, item = slides[int(time.time() // 8) % len(slides)]
-            if kind == "fact":
-                txt = re.sub(r"\*\*(.+?)\*\*", r"<span style='color:#B0122A'>\1</span>", item[0])
-                st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center;font:700 2.3rem/1.35 var(--display)'>"
+            @st.fragment(run_every=8)
+            def slideshow():
+                slides = [("fact", f) for f in FACTS] + [("chart", k) for k in ("rank", "genz", "types", "festive", "survey")]
+                kind, item = slides[int(time.time() // 8) % len(slides)]
+                if kind == "fact":
+                    txt = re.sub(r"\*\*(.+?)\*\*", r"<span style='color:#B0122A'>\1</span>", item[0])
+                    st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center;font:700 2.3rem/1.35 var(--display)'>"
                             f"💡<br>{txt}<br><span style='font:400 1rem var(--body);color:#8D7476'>🔎 {item[1]}</span></div>",
-                            unsafe_allow_html=True)
-            elif item == "rank":
-                df_ = bot.rank(data, "per_capita", FULL)
-                st.plotly_chart(bot.bar_chart(df_, [df_.iloc[0]["state"]], f"Donations per 1,000 adults, {FULL}", "per_capita"),
-                                width="stretch", key="show_rank", config={"displayModeBar": False}, theme=None)
-            elif item == "genz":
-                g_ = bot.yearly_values(data, "genz", ["Malaysia"])
-                g_ = g_[g_.year <= FULL]
-                st.plotly_chart(bot.line_chart(g_, "Gen Z first-time donors in Malaysia", "genz"), width="stretch", key="show_genz",
-                                config={"displayModeBar": False}, theme=None)
-            elif item == "types":
-                r_ = bot.answer(f"blood types Malaysia {FULL}", data, lang=st.session_state.lang)
-                st.plotly_chart(r_["chart"], width="stretch", key="show_types", config={"displayModeBar": False}, theme=None)
-            elif item == "survey":
-                if survey is not None and len(survey):
-                    s2 = bot.survey_summary(survey)
-                    st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center'><div class='big-num'>{s2['n']}</div>"
+                                unsafe_allow_html=True)
+                elif item == "rank":
+                    df_ = bot.rank(data, "per_capita", FULL)
+                    st.plotly_chart(bot.bar_chart(df_, [df_.iloc[0]["state"]], f"Donations per 1,000 adults, {FULL}", "per_capita"),
+                                    width="stretch", key="show_rank", config={"displayModeBar": False}, theme=None)
+                elif item == "genz":
+                    g_ = bot.yearly_values(data, "genz", ["Malaysia"])
+                    g_ = g_[g_.year <= FULL]
+                    st.plotly_chart(bot.line_chart(g_, "Gen Z first-time donors in Malaysia", "genz"), width="stretch", key="show_genz",
+                                    config={"displayModeBar": False}, theme=None)
+                elif item == "types":
+                    r_ = bot.answer(f"blood types Malaysia {FULL}", data, lang=st.session_state.lang)
+                    st.plotly_chart(r_["chart"], width="stretch", key="show_types", config={"displayModeBar": False}, theme=None)
+                elif item == "survey":
+                    if survey is not None and len(survey):
+                        s2 = bot.survey_summary(survey)
+                        st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center'><div class='big-num'>{s2['n']}</div>"
                                 f"<div class='h3'>{B('people have answered our survey so far', 'orang telah menjawab tinjauan kami setakat ini')}</div>"
                                 f"<p style='margin-top:10px'>{SURVEY_URL.replace('https://', '')}</p></div>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center;font:700 2rem var(--display)'>📋 "
+                    else:
+                        st.markdown(f"<div class='card' style='padding:3rem 2rem;text-align:center;font:700 2rem var(--display)'>📋 "
                                 f"{B('Take our 2-minute survey', 'Jawab tinjauan 2 minit kami')}<p style='font:500 1.1rem var(--body)'>"
                                 f"{SURVEY_URL.replace('https://', '')}</p></div>", unsafe_allow_html=True)
-            else:
-                fe2 = bot.festive_effect(data, "Hari Raya Aidilfitri")
-                fig2 = px.bar(fe2, x="year", y=["normal day", "on the day"], barmode="group",
-                              color_discrete_map={"normal day": bot.GREY, "on the day": bot.RED},
-                              title="Hari Raya Aidilfitri: donations almost stop for a day")
-                st.plotly_chart(fig2, width="stretch", key="show_fest", config={"displayModeBar": False}, theme=None)
-            st.progress((int(time.time() // 8) % len(slides) + 1) / len(slides))
-            st.markdown(f"<div style='text-align:center;font-size:1.2rem'>🩸 {B('Ask me anything in the Ask DarahBot tab!', 'Tanya saya apa sahaja di tab Ask DarahBot!')}</div>",
-                        unsafe_allow_html=True)
+                else:
+                    fe2 = bot.festive_effect(data, "Hari Raya Aidilfitri")
+                    fig2 = px.bar(fe2, x="year", y=["normal day", "on the day"], barmode="group",
+                                  color_discrete_map={"normal day": bot.GREY, "on the day": bot.RED},
+                                  title="Hari Raya Aidilfitri: donations almost stop for a day")
+                    st.plotly_chart(fig2, width="stretch", key="show_fest", config={"displayModeBar": False}, theme=None)
+                st.progress((int(time.time() // 8) % len(slides) + 1) / len(slides))
+                st.markdown(f"<div style='text-align:center;font-size:1.2rem'>🩸 {B('Ask me anything in the Ask DarahBot tab!', 'Tanya saya apa sahaja di tab Ask DarahBot!')}</div>",
+                            unsafe_allow_html=True)
 
-        slideshow()
+            slideshow()
 
 # ================================================================ ABOUT
-with tab_about:
-    heading("About the data", "Tentang data")
-    st.markdown(f"""
+if show("about"):
+    with section("about"):
+        heading("About the data", "Tentang data")
+        st.markdown(f"""
 <div class="card">
 <b>Dataset 1, donations_state.csv:</b> daily blood donations per state, split by blood type, location, donor type and social group.<br>
 <b>Dataset 2, newdonors_state.csv:</b> daily number of first-time donors per state, split by age group.<br>
@@ -973,5 +1360,14 @@ with tab_about:
 </ul></div>
 <p class="note">Made by <b>{CREDIT}</b> for the CSC649 Python Data Science Exhibition.</p>
 """, unsafe_allow_html=True)
-    st.markdown("**Preview of the raw data · Pratonton data mentah**")
-    st.dataframe(data["donations"].tail(20), width="stretch", hide_index=True)
+        st.markdown("**Preview of the raw data · Pratonton data mentah**")
+        st.dataframe(data["donations"].tail(20), width="stretch", hide_index=True)
+
+
+# ---------------------------------------------------------------- phone: close the menu after choosing a section
+if PHONE and st.session_state.pop("close_menu", False):
+    st.iframe("""<script>
+    const d = window.parent.document;
+    setTimeout(() => { d.querySelector('[data-testid="stSidebarCollapseButton"] button')?.click();
+                       d.querySelector('[data-testid="stMain"]')?.scrollTo({top: 0}); window.parent.scrollTo(0, 0); }, 150);
+    </script>""", height=1)

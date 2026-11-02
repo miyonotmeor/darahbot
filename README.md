@@ -44,6 +44,9 @@ Hostinger can't run Python apps, so the app runs free on **Streamlit Community C
 |---|---|
 | `app.py` | The chat screen and exhibition tabs (Streamlit), in the same blood-red design as our survey |
 | `bot_engine.py` | The "brain": reads the question, runs pandas, builds answer + evidence + chart |
+| `quiz.py` | The quiz: 48 questions computed from the data, fuzzy marking, no-repeat question pool |
+| `photoframe.py` | Puts the visitor's photo in the DarahBot frame |
+| `test_quiz.py` | 28 checks for the quiz (answers match the CSV, close answers accepted, no repeats) |
 | `test_bot.py` | 40 tests: re-calculates answers straight from the CSV, tests tricky questions, the survey and "Can I donate?" |
 | `data/` | The 4 original KKM CSV files + `hospital_state.csv` (hospital → state, verified) |
 | `data_dictionary.md` | Every column explained (meaning, type, example, unit) |
@@ -63,6 +66,15 @@ visitor message → detect_intent() → find_states() / find_years() / find_metr
 ```
 
 No AI model runs inside the app. Every number comes from a pandas calculation.
+
+## New in the November 2026 update (exhibition)
+
+- 📱 **Phone screen like a chat app**: welcome, one text bar, everything else in the **☰ Menu**
+- 👋 **3-step tutorial** for new visitors who scan the QR code (Back / Next / Finish)
+- ⬇️ **Auto-scroll** to every new answer, and **"You might also like"** suggestions
+- 🏆 **Quiz & prize**: 10 random questions from a bank of 48 (`quiz.py`), close answers count, **8+ wins a present**, questions are not repeated for the next person
+- 📸 **Photo booth**: camera photo inside a DarahBot frame, ready to download (`photoframe.py`)
+- Add `?view=phone` or `?view=full` to the link to force a layout; `?tour=1` shows the tutorial on any device
 
 ## New in the October 2026 update
 
