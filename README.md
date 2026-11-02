@@ -71,9 +71,9 @@ No AI model runs inside the app. Every number comes from a pandas calculation.
 - **Tutorial opens by itself on every device**: a short intro, 4 animated steps (Ask, Proof, Menu, Quiz & photo), then Finish. Reopen it any time from the menu ("How to use DarahBot").
 - **Phone home screen is blank, like a new chat.** Example questions live in the Menu side panel, which slides in and out smoothly.
 - **Correct DarahBot logo** (red circle with a white drop) everywhere.
-- **Memory photo only after the quiz.** The Photo booth section stays locked until the 10 questions are done.
-  - 8 or more: "You win a present! Please see Amirrul at the booth."
-  - Under 8: "Thank you for trying!", and they can still take a photo.
+- **Memory photo only after the quiz.** The Photo booth section stays locked until the 6 questions are done.
+  - 5 or more (out of 6): "You win a present! Please see Amirrul at the booth."
+  - Under 5: "Thank you for trying!", and they can still take a photo.
 - **Uses the device's own camera** (full quality, normal settings) through the photo picker, not the small browser camera.
 - **Two styles:** one photo with the DarahBot frame (portrait or landscape, following the photo), or a 4-photo strip. The frame shows the name, score, DarahBot title and logo.
 - **Winners** take one more photo holding their present.
@@ -84,7 +84,7 @@ No AI model runs inside the app. Every number comes from a pandas calculation.
 - 📱 **Phone screen like a chat app**: welcome, one text bar, everything else in the **☰ Menu**
 - 👋 **3-step tutorial** for new visitors who scan the QR code (Back / Next / Finish)
 - ⬇️ **Auto-scroll** to every new answer, and **"You might also like"** suggestions
-- 🏆 **Quiz & prize**: 10 random questions from a bank of 48 (`quiz.py`), close answers count, **8+ wins a present**, questions are not repeated for the next person
+- 🏆 **Quiz & prize**: 6 random questions from a bank of 48 (`quiz.py`), close answers count (typos, Malay words, months as numbers), **5 of 6 wins a present**, questions are not repeated for the next person
 - 📸 **Photo booth**: camera photo inside a DarahBot frame, ready to download (`photoframe.py`)
 - Add `?view=phone` or `?view=full` to the link to force a layout; `?tour=1` shows the tutorial on any device
 

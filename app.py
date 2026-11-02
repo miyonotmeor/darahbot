@@ -476,9 +476,9 @@ def tour_steps():
          '<span class="on">🏆 Quiz &amp; prize</span><span>💡 Try asking…</span></div>'
          '<div class="tv-main"><div class="tv-mbtn">☰ Menu</div><div class="tv-line"></div><div class="tv-line s"></div></div></div>'),
         ("4 · Quiz, prize & memory photo", "Kuiz, hadiah & gambar kenangan",
-         "Answer 10 quick questions. Score 8 or more to win a present! Then take a memory photo with our DarahBot frame and download it with a QR code.",
-         "Jawab 10 soalan ringkas. Dapat 8 ke atas untuk hadiah! Kemudian ambil gambar kenangan dengan bingkai DarahBot dan muat turun melalui kod QR.",
-         '<div class="tv-quiz"><div class="tv-score">8<small>/10</small></div><div class="tv-prize">🏆</div>'
+         "Answer 6 quick questions. Get 5 or more right to win a present! Then take a memory photo with our DarahBot frame and download it with a QR code.",
+         "Jawab 6 soalan ringkas. Betul 5 ke atas untuk hadiah! Kemudian ambil gambar kenangan dengan bingkai DarahBot dan muat turun melalui kod QR.",
+         '<div class="tv-quiz"><div class="tv-score">5<small>/6</small></div><div class="tv-prize">🏆</div>'
          '<div class="tv-photo">📸</div></div>'),
     ]
 
@@ -1186,7 +1186,7 @@ if show("story"):
         st.caption("The data shows what changed. It cannot tell us why (e.g. COVID-19, campus campaigns). · Data menunjukkan apa yang berubah, bukan sebabnya.")
 
 # ================================================================ QUIZ & PRIZE
-QUIZ_N, PRIZE_AT = 10, 8
+QUIZ_N, PRIZE_AT = 6, 5
 
 
 @st.cache_resource
@@ -1351,7 +1351,8 @@ if show("quiz"):
                 with st.form(f"qf_{qz['i']}", clear_on_submit=False, border=False):
                     ans = st.text_input("Your answer · Jawapan anda", key=f"qa_{qz['ids'][qz['i']]}",
                                         placeholder={"num": "a number, e.g. 590k or 45", "state": "a state, e.g. Johor",
-                                                     "bool": "yes / no · ya / tidak"}.get(q["kind"], "your answer"))
+                                                     "bool": "yes / no · ya / tidak",
+                                                     "month": "a month, e.g. March, Mac or 3", "day": "a day, e.g. Friday or Jumaat"}.get(q["kind"], "your answer"))
                     sent = st.form_submit_button("Check answer · Semak", type="primary", width="stretch")
                 if q["hint"]:
                     with st.expander("💡 Hint · Petunjuk"):
@@ -1414,8 +1415,8 @@ if show("quiz"):
 if show("photo"):
     with section("photo"):
         heading("Memory photo", "Gambar kenangan",
-                "Your DarahBot memory photo unlocks after you finish the 10-question quiz.",
-                "Gambar kenangan DarahBot dibuka selepas anda menamatkan kuiz 10 soalan.")
+                "Your DarahBot memory photo unlocks after you finish the 6-question quiz.",
+                "Gambar kenangan DarahBot dibuka selepas anda menamatkan kuiz 6 soalan.")
         qz = st.session_state.get("qz", {})
         if qz.get("stage") in ("done", "mem"):
             st.success("Quiz finished! Your photo is waiting in the Quiz section. · Kuiz selesai!")

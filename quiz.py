@@ -28,8 +28,8 @@ MONTHS = ["January", "February", "March", "April", "May", "June", "July", "Augus
           "October", "November", "December"]
 MONTHS_MS = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September",
              "Oktober", "November", "Disember"]
-YES = ["yes", "ya", "y", "true", "betul", "benar", "up", "naik", "increase", "increased", "bertambah", "more", "lebih"]
-NO = ["no", "tidak", "tak", "x", "false", "salah", "down", "turun", "decrease", "decreased", "berkurang", "less", "kurang", "fell", "drop"]
+YES = ["yes", "ya", "y", "true", "yup", "yep", "yeah", "ye", "yea", "yess", "yas", "iya", "iye", "betol", "ok", "okay", "correct", "right", "sure", "betul", "benar", "up", "naik", "increase", "increased", "bertambah", "more", "lebih"]
+NO = ["no", "tidak", "tak", "nope", "nah", "nop", "noo", "tk", "tidk", "tdk", "x", "bukan", "takde", "tiada", "never", "not", "cannot", "cant", "wrong", "incorrect", "x", "false", "salah", "down", "turun", "decrease", "decreased", "berkurang", "less", "kurang", "fell", "drop"]
 
 
 def _fmt(v):
@@ -166,19 +166,15 @@ def build_questions(data):
     wk = nat.assign(wd=nat["date"].dt.weekday).groupby("wd")["daily"].mean()
     bd, qd = int(wk.idxmax()), int(wk.idxmin())
     add("c_busy_day", f"On which DAY of the week were donations highest on average in {full}?",
-        f"Pada HARI apa derma paling tinggi secara purata pada {full}?", "word", DAYS[bd], f"{DAYS[bd]} ({DAYS_MS[bd]})",
-        accept=[DAYS[bd], DAYS_MS[bd], DAYS[bd][:3]])
+        f"Pada HARI apa derma paling tinggi secara purata pada {full}?", "day", bd, f"{DAYS[bd]} ({DAYS_MS[bd]})")
     add("c_quiet_day", f"On which DAY of the week were donations lowest on average in {full}?",
-        f"Pada HARI apa derma paling rendah secara purata pada {full}?", "word", DAYS[qd], f"{DAYS[qd]} ({DAYS_MS[qd]})",
-        accept=[DAYS[qd], DAYS_MS[qd], DAYS[qd][:3]])
+        f"Pada HARI apa derma paling rendah secara purata pada {full}?", "day", qd, f"{DAYS[qd]} ({DAYS_MS[qd]})")
     mo = nat.assign(m=nat["date"].dt.month).groupby("m")["daily"].sum()
     bm, qm = int(mo.idxmax()) - 1, int(mo.idxmin()) - 1
     add("c_busy_month", f"Which MONTH had the most blood donations in Malaysia in {full}?",
-        f"BULAN mana paling banyak derma darah di Malaysia pada {full}?", "word", MONTHS[bm], f"{MONTHS[bm]} ({MONTHS_MS[bm]})",
-        accept=[MONTHS[bm], MONTHS_MS[bm], MONTHS[bm][:3]])
+        f"BULAN mana paling banyak derma darah di Malaysia pada {full}?", "month", bm, f"{MONTHS[bm]} ({MONTHS_MS[bm]}) · month {bm + 1}")
     add("c_quiet_month", f"Which MONTH had the fewest blood donations in Malaysia in {full}?",
-        f"BULAN mana paling sedikit derma darah di Malaysia pada {full}?", "word", MONTHS[qm], f"{MONTHS[qm]} ({MONTHS_MS[qm]})",
-        accept=[MONTHS[qm], MONTHS_MS[qm], MONTHS[qm][:3]],
+        f"BULAN mana paling sedikit derma darah di Malaysia pada {full}?", "month", qm, f"{MONTHS[qm]} ({MONTHS_MS[qm]}) · month {qm + 1}",
         hint="Think about Ramadan and Hari Raya.", hint_ms="Fikirkan tentang Ramadan dan Hari Raya.")
     fe = bot.festive_effect(data, "Hari Raya Aidilfitri")
     add("c_raya", "On the first day of Hari Raya Aidilfitri, do blood donations go UP or DOWN?",
@@ -235,7 +231,7 @@ def parse_number(text):
     if not m:
         words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
                  "satu": 1, "dua": 2, "tiga": 3, "empat": 4, "lima": 5, "enam": 6, "tujuh": 7, "lapan": 8, "sembilan": 9, "sepuluh": 10,
-                 "twelve": 12, "eighteen": 18, "forty five": 45, "sixty": 60}
+                 "twelve": 12, "dua belas": 12, "sebelas": 11, "eleven": 11, "eighteen": 18, "lapan belas": 18, "forty five": 45, "sixty": 60}
         for w, v in sorted(words.items(), key=lambda x: -len(x[0])):
             if re.search(r"\b" + w + r"\b", t):
                 return float(v)
@@ -249,14 +245,74 @@ def parse_number(text):
     return v
 
 
+# every way people write a month or a day (English, Malay, short forms, slang)
+MONTH_WORDS = {}
+for _i, (_en, _ms) in enumerate(zip(MONTHS, MONTHS_MS)):
+    for _w in {_en.lower(), _ms.lower(), _en[:3].lower(), _ms[:3].lower(), _en[:4].lower()}:
+        MONTH_WORDS[_w] = _i
+MONTH_WORDS.update({"sept": 8, "okt": 9, "dis": 11, "ogo": 7, "mac": 2, "mei": 4, "julai": 6, "jul": 6, "jun": 5,
+                    "febuari": 1, "febuary": 1, "feburary": 1, "agust": 7, "ogs": 7})
+DAY_WORDS = {}
+for _i, (_en, _ms) in enumerate(zip(DAYS, DAYS_MS)):
+    for _w in {_en.lower(), _ms.lower(), _en[:3].lower(), _ms[:3].lower(), _en[:4].lower()}:
+        DAY_WORDS[_w] = _i
+DAY_WORDS.update({"tues": 1, "weds": 2, "thur": 3, "thurs": 3, "jumat": 4, "jummat": 4, "minggu": 6, "ahd": 6,
+                  "isnen": 0, "slasa": 1, "kamis": 3, "sabtu": 5})
+NUM_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+             "ten": 10, "eleven": 11, "twelve": 12, "satu": 1, "dua": 2, "tiga": 3, "empat": 4, "lima": 5, "enam": 6,
+             "tujuh": 7, "lapan": 8, "sembilan": 9, "sepuluh": 10, "sebelas": 11, "first": 1, "second": 2, "third": 3,
+             "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11,
+             "twelfth": 12, "pertama": 1, "kedua": 2, "ketiga": 3, "keempat": 4, "kelima": 5, "keenam": 6,
+             "ketujuh": 7, "kelapan": 8, "kesembilan": 9, "kesepuluh": 10, "kesebelas": 11, "kedua belas": 12,
+             "dua belas": 12}
+
+
+def parse_choice(text, words, n):
+    """Find which month (n=12) or day (n=7) someone meant: names, Malay, short forms, typos, or a number
+    (1 = January / Monday). Returns a 0-based index, or None if unclear or more than one was given."""
+    t = str(text).lower()
+    found = set()
+    toks = re.findall(r"[a-z]+|\d+", t)
+    for tok in toks:
+        if tok.isdigit():
+            v = int(tok)
+            if 1 <= v <= n and len(tok) <= 2:     # ignore years like 2025
+                found.add(v - 1)
+            continue
+        if tok in words:
+            found.add(words[tok])
+            continue
+        if len(tok) >= 4:                          # spelling mistakes: "febuary", "agoust", "wensday"
+            best = difflib.get_close_matches(tok, [w for w in words if len(w) >= 4], n=1, cutoff=0.72)
+            if best:
+                found.add(words[best[0]])
+    if not found:
+        for w, v in sorted(NUM_WORDS.items(), key=lambda x: -len(x[0])):
+            if v <= n and re.search(r"\b" + w + r"\b", t):
+                found.add(v - 1)
+                break
+    return found.pop() if len(found) == 1 else None
+
+
 def check(answer, q, states=None):
     """Return (result, message): result is 'correct', 'close' (counted correct) or 'wrong'."""
     a = str(answer or "").strip()
     if not a:
         return "wrong", "No answer"
     kind = q["kind"]
+    if kind in ("month", "day"):
+        got = parse_choice(a, MONTH_WORDS if kind == "month" else DAY_WORDS, 12 if kind == "month" else 7)
+        if got is None:
+            return "wrong", ""
+        return ("correct", "") if got == q["answer"] else ("wrong", "")
     if kind == "num":
         v = parse_number(a)
+        low = a.lower()
+        if v is None and re.search(r"\b(a|one|se|satu)\s*(year|tahun)\b|setahun", low):
+            v = 1.0
+        # "1 year" for a question in months, "2 years" etc.
+        if v is not None and q["unit"] in ("months", "month") and re.search(r"year|tahun", low):
+            v *= 12
         if v is None:
             return "wrong", "That isn't a number"
         target = q["answer"]
@@ -277,13 +333,21 @@ def check(answer, q, states=None):
         return "wrong", ""
     if kind == "state":
         found, _ = bot.find_states(a, states or [])
-        if q["answer"] in found and len([f for f in found if f != "Malaysia"]) == 1:
+        found = [f for f in found if f != "Malaysia"]
+        if q["answer"] in found and len(found) == 1:
             return "correct", ""
+        # last try: one misspelt word against the right state ("selanor", "terenganu", "kualalumpur")
+        target = q["answer"].lower().replace("w.p. ", "")
+        squash = lambda x: re.sub(r"[^a-z]", "", x.lower())
+        if not found and difflib.SequenceMatcher(None, squash(a), squash(target)).ratio() >= 0.75:
+            return "close", "Close enough!"
         return "wrong", ""
     if kind == "bool":
         w = set(_norm(a))
         said_yes = bool(w & set(YES))
         said_no = bool(w & set(NO))
+        if said_yes and said_no and w & {"not", "tak", "tidak", "never", "x", "bukan", "tk", "tdk", "tidk"}:
+            said_yes = False                        # "not increase", "tak naik" mean no
         if said_yes == said_no:
             return "wrong", "Answer yes or no"
         return ("correct", "") if said_yes == bool(q["answer"]) else ("wrong", "")
@@ -300,6 +364,8 @@ def check(answer, q, states=None):
             if target in guess.split() or target.replace("+", "") in [g.replace("+", "") for g in guess.split()]:
                 return "correct", ""
             continue
+        if guess.replace(" ", "") == target.replace(" ", ""):
+            return "correct", ""
         if target in guess or (len(guess) >= 4 and guess in target):
             return "close", "Close enough!"
         if difflib.SequenceMatcher(None, guess, target).ratio() >= 0.78:

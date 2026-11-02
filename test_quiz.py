@@ -30,7 +30,7 @@ t("'lapan belas'? number words ok for 3", mark("r_lives", "three") and mark("r_l
 t("weight '45kg'", mark("r_weight", "45kg"))
 t("fasting 'tidak'", mark("r_fasting", "tidak") and not mark("r_fasting", "ya"))
 t("genz % within 4 pts", mark("n_genz_share", f"{Q['n_genz_share']['answer']+3:.0f}%"))
-t("day in Malay", mark("c_busy_day", quiz.DAYS_MS[quiz.DAYS.index(Q["c_busy_day"]["answer"])]))
+t("day in Malay", mark("c_busy_day", quiz.DAYS_MS[Q["c_busy_day"]["answer"]]))
 t("raya down", mark("c_raya", "turun") or mark("c_raya", "up"))
 # answers recomputed independently
 import pandas as pd
@@ -46,5 +46,16 @@ for _ in range(len(Q) // 10):
     seen += p.draw(10)
 t("no repeats until pool used up", len(seen) == len(set(seen)))
 t("pool refills after all used", len(p.draw(10)) == 10)
+# months and days: numbers, Malay, short forms, typos
+bm = Q["c_busy_month"]["answer"]
+for a in [str(bm + 1), f"bulan {bm + 1}", quiz.MONTHS[bm], quiz.MONTHS_MS[bm], quiz.MONTHS[bm][:3].upper(), quiz.MONTHS[bm] + " 2025"]:
+    t(f"month answer {a!r}", quiz.check(a, Q["c_busy_month"], S)[0] != "wrong")
+t("wrong month number", quiz.check(str((bm + 1) % 12 + 1), Q["c_busy_month"], S)[0] == "wrong")
+t("year alone is not a month", quiz.check("2025", Q["c_busy_month"], S)[0] == "wrong")
+t("typo febuary", quiz.parse_choice("febuary", quiz.MONTH_WORDS, 12) == 1)
+t("Malay Ogos", quiz.parse_choice("ogos", quiz.MONTH_WORDS, 12) == 7)
+t("typo wensday", quiz.parse_choice("wensday", quiz.DAY_WORDS, 7) == 2)
+t("1 year = 12 months", quiz.check("1 year", Q["r_tattoo"], S)[0] != "wrong")
+t("not increase = no", quiz.check("tak naik", Q["c_raya"], S)[0] == ("correct" if not Q["c_raya"]["answer"] else "wrong"))
 print(f"\nRESULT: {ok} passed, {bad} failed")
 for q in list(Q.values())[:0]: pass
