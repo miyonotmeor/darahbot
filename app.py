@@ -358,20 +358,18 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 .present-box p, .qr-box p { margin:6px 0 0; opacity:.85; } .present-box .ms, .qr-box .ms { color: rgba(255,255,255,.8) !important; }
 [data-testid="stFileUploaderDropzone"] { border-radius:16px; border: 2px dashed #E9B9C0; background:#fff; }
 /* photo boxes look like big camera buttons */
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] { background: linear-gradient(180deg,#E8283F,#B0122A); border:0; border-radius:18px;
-  min-height:96px; justify-content:center; cursor:pointer; box-shadow:0 14px 28px -14px rgba(176,18,42,.9); transition: transform .15s; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] { position:relative; overflow:hidden; background: linear-gradient(180deg,#E8283F,#B0122A);
+  border:0; border-radius:18px; min-height:96px; padding:0 !important; cursor:pointer; box-shadow:0 14px 28px -14px rgba(176,18,42,.9); transition: transform .15s; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:active { transform: scale(.97); }
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzoneInstructions"] { display:none; }
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button { background:transparent !important; border:0 !important; color:transparent !important; width:100%; min-height:70px; position:relative; }
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button::after { content:"📷  Open camera · Buka kamera"; position:absolute; inset:0; display:grid; place-items:center;
-  color:#fff; font: 800 19px var(--display); }
-/* after the photo is taken: no file name, just a "Retake" button (the framed photo shows below) */
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) { min-height:58px; }
-[class*="st-key-cam"] [data-testid="stFileChip"] { display:none !important; }
-[class*="st-key-cam"] [data-testid="stFileChips"] { width:100%; display:block; }
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] { position:relative; }
-[class*="st-key-cam"] [data-testid="stFileChips"] button { position:static !important; }
-[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button { min-height:46px; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzoneInstructions"], [class*="st-key-cam"] [data-testid="stFileChip"] { display:none !important; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] *:not(button):not(input) { position:static !important; }
+/* the button's label covers the WHOLE red box, so the text is always exactly in the middle */
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button { position:static !important; background:transparent !important; border:0 !important;
+  color:transparent !important; box-shadow:none !important; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button svg, [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button span { opacity:0; }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button::after { content:"📷  Open camera · Buka kamera"; position:absolute; inset:0; display:flex;
+  align-items:center; justify-content:center; text-align:center; padding:0 14px; color:#fff; font: 800 clamp(15px, 2.2vw, 19px)/1.2 var(--display); }
+[class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) { min-height:60px; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button::after { content:"↺  Retake · Ambil semula"; font-size:16px; }
 /* the quiz button in the side panel stands out */
 .st-key-side_quiz button { background:#fff !important; color: var(--blood) !important; border:0 !important; font-weight:800 !important;
