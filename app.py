@@ -365,6 +365,43 @@ div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
 .bf-confetti i { position:absolute; top:-12px; left: var(--x); width:9px; height:13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
   background: var(--c); animation: bffall 2.6s var(--d) ease-in infinite; opacity:.9; }
 @keyframes bffall { 0% { top:-14px; opacity:0; } 10% { opacity:1; } 100% { top:105%; opacity:0; transform: rotate(-45deg) translateX(14px); } }
+/* ---- prizes left + winners wall ---- */
+.quiz-start { grid-template-columns: repeat(4,1fr) !important; }
+@media (max-width: 760px) { .quiz-start { grid-template-columns: repeat(2,1fr) !important; } }
+.quiz-start .hot { background: linear-gradient(160deg,#E8283F,#8E0C21) !important; border:0 !important; box-shadow:0 16px 30px -16px rgba(176,18,42,.9), 0 0 0 3px #FFE282; }
+.quiz-start .hot b, .quiz-start .hot span, .quiz-start .hot .ms { color:#fff !important; }
+.quiz-start .hot b small { font-size:16px; opacity:.75; }
+.ww { margin: 26px 0 6px; }
+.ww-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.ww-head b { font: 800 22px var(--display); color: var(--ink); } .ww-head b .ms { font: 500 13px var(--body); }
+.ww-head span { color: var(--muted); font-size:13px; } .ww-head span .ms { display:inline; margin-left:6px; }
+.ww-view { overflow:hidden; border-radius:22px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.ww-track { display:flex; gap:16px; width:max-content; padding:6px 0 14px; animation: wwmove linear infinite; }
+.ww-view:hover .ww-track { animation-play-state: paused; }
+@keyframes wwmove { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.ww-card { flex:none; display:flex; flex-direction:column; background: linear-gradient(170deg,#2B0F13,#140306); border-radius:20px; overflow:hidden;
+  box-shadow:0 18px 34px -20px rgba(92,7,20,.8); border:1px solid rgba(255,255,255,.06); }
+.ww-card.single { width:360px; } .ww-card.strip { width:200px; }
+.ww-pic { height:250px; display:grid; place-items:center; background: radial-gradient(120% 80% at 30% 0%, #5C0714, #140306); padding:10px; }
+.ww-pic img { max-width:100%; max-height:100%; object-fit:contain; border-radius:10px; }
+.ww-none { font-size:64px; }
+.ww-meta { padding:12px 16px 16px; color:#fff; display:grid; gap:2px; }
+.ww-n { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#FFE282; } .ww-n .ms { display:none; }
+.ww-meta b { font: 800 18px var(--display); } .ww-meta b .ms { display:none; }
+.ww-meta small { color: rgba(255,255,255,.65); } .ww-meta small .ms { display:none; }
+/* winner / thanks pop-up */
+.winpop { text-align:center; }
+.wp-trophy { font-size:64px; line-height:1; animation: bfpop .8s cubic-bezier(.2,1.6,.4,1) both, bfwiggle 2.4s 1s ease-in-out infinite; }
+.wp-t { font: 800 26px/1.15 var(--display); color: var(--blood); margin-top:8px; animation: fadeup .5s .3s both; } .wp-t .ms { font: 600 14px var(--body); color: var(--muted); }
+.winpop p { color: var(--ink2); font-size:15px; margin:10px 0 6px; animation: fadeup .5s .5s both; }
+.wp-box { background:#FFF0F1; color: var(--blood); font-weight:700; border-radius:14px; padding:10px 12px; margin:8px 0 8px; animation: fadeup .5s .7s both; } .wp-box .ms { font-weight:500; }
+.win-steps { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin: 6px 0 12px; }
+.win-steps div { display:flex; gap:10px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; font-weight:700; color: var(--muted); font-size:14px; }
+.win-steps div .ms { display:none; }
+.win-steps i { flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-style:normal; background:#F1E4E1; color: var(--ink2); }
+.win-steps .on { border-color: var(--blood); color: var(--ink); } .win-steps .on i { background: var(--blood); color:#fff; }
+.win-steps .ok { color:#1D6B49; } .win-steps .ok i { background:#1D8A5A; color:#fff; }
+.step-h { font: 800 19px var(--display); color: var(--ink); margin: 14px 0 6px; } .step-h .ms { font: 500 13px var(--body); }
 /* ---- quiz registration ---- */
 .reg-card { display:grid; gap:14px; background:#fff; border:1px solid var(--line); border-radius:22px; padding:20px; margin:6px 0 12px;
   box-shadow:0 18px 40px -26px rgba(92,7,20,.6); animation: fadeup .5s both; }
@@ -1440,6 +1477,95 @@ def photo_input(label, key):
     return st.file_uploader(label, type=["jpg", "jpeg", "png", "heic", "heif", "webp"], key=key, label_visibility="visible")
 
 
+@st.cache_data(ttl=8, show_spinner=False)
+def prize_status():
+    """Prizes left and the winners wall, from dermadarah.jomana.my/prize.php (shared by every device)."""
+    import requests
+    try:
+        r = requests.get(SURVEY_URL.rstrip("/") + "/prize.php", timeout=8)
+        return r.json() if r.ok else None
+    except Exception:
+        return None
+
+
+def claim_prize(qz):
+    """Ask the server for one of the prizes. Returns (granted, winner_number, left); (True, None, None) if offline."""
+    import requests
+    key = memory_key()
+    if not key:
+        return True, None, None
+    try:
+        r = requests.post(SURVEY_URL.rstrip("/") + "/prize.php", timeout=10, json={
+            "key": key, "id": qz["mid"], "name": qz.get("name") or "", "score": qz.get("score"), "total": QUIZ_N})
+        j = r.json()
+        prize_status.clear()
+        return bool(j.get("granted")), j.get("n"), j.get("left")
+    except Exception:
+        return True, None, None
+
+
+def winners_wall():
+    """Auto-moving slideshow of winners: 1st winner = framed photo, 2nd = photo strip, 3rd = framed photo..."""
+    ps = prize_status()
+    if not ps:
+        return
+    ws = ps.get("winners") or []
+    base = SURVEY_URL.rstrip("/") + "/"
+    cards = []
+    for w in ws:
+        who = html.escape(w.get("name") or "Winner")
+        pic = (f'<img src="{html.escape(base + w["img"])}" loading="lazy" alt="">' if w.get("img")
+               else '<div class="ww-none">🏆</div>')
+        cards.append(f'''<div class="ww-card {"strip" if w.get("kind") == "strip" else "single"}"><div class="ww-pic">{pic}</div>
+<div class="ww-meta"><span class="ww-n">🏆 Winner #{w["n"]}</span><b>{who}</b><small>Quiz {w["score"]}/{w["total"]}</small></div></div>''')
+    if not cards:
+        cards = [f'<div class="ww-card single"><div class="ww-pic"><div class="ww-none">🏆</div></div><div class="ww-meta">'
+                 f'<span class="ww-n">{B("Could it be you?", "Mungkin anda?")}</span><b>{B("Be our first winner!", "Jadi pemenang pertama kami!")}</b>'
+                 f'<small>{B(f"Score {PRIZE_AT} of {QUIZ_N}", f"Betul {PRIZE_AT} daripada {QUIZ_N}")}</small></div></div>']
+    while len(cards) < 6:                      # enough cards to fill the row before it loops
+        cards = cards + cards
+    track = "".join(cards)
+    secs = max(24, len(cards) * 5)
+    st.markdown(f'''<div class="ww"><div class="ww-head"><b>{B("🏆 Our winners", "🏆 Pemenang kami")}</b>
+<span>{B(f"{len(ws)} of {ps.get('total', 10)} prizes won so far", f"{len(ws)} daripada {ps.get('total', 10)} hadiah telah dimenangi")}</span></div>
+<div class="ww-view"><div class="ww-track" style="animation-duration:{secs}s">{track}{track}</div></div></div>''', unsafe_allow_html=True)
+
+
+@st.dialog("DarahBot", width="small", dismissible=False)
+def win_popup(qz):
+    who = html.escape(qz.get("name") or "")
+    st.markdown(f'''<div class="winpop"><div class="wp-trophy">🏆</div>
+<div class="wp-t">{B("Congratulations" + (", " + who if who else "") + "!", "Tahniah!")}</div>
+<p>{B(f"You scored {qz['score']}/{QUIZ_N} and won prize #{qz.get('prize_n') or ''}! Please claim your prize from Amirrul at the booth.",
+      f"Anda dapat {qz['score']}/{QUIZ_N} dan menang hadiah! Sila tuntut hadiah anda daripada Amirrul di booth.")}</p>
+<div class="wp-box">{B("Next: take 2 winner photos as proof, a framed photo and a photo booth strip. You will appear on our winners wall!",
+                       "Seterusnya: ambil 2 gambar pemenang sebagai bukti, gambar berbingkai dan jalur photo booth. Anda akan dipaparkan di dinding pemenang!")}</div></div>''',
+                unsafe_allow_html=True)
+    if st.button("📸 Take my winner photos · Ambil gambar", type="primary", width="stretch"):
+        qz["stage"] = "mem"
+        st.rerun()
+
+
+@st.dialog("DarahBot", width="small", dismissible=False)
+def thanks_popup(qz):
+    who = html.escape(qz.get("name") or "")
+    msg_en = ("Great score, but all the prizes are gone. Thank you for playing!" if qz.get("no_prize_left")
+              else f"You scored {qz['score']}/{QUIZ_N}. You needed {PRIZE_AT} to win, but thank you for playing!")
+    msg_ms = ("Markah hebat, tetapi semua hadiah sudah habis. Terima kasih kerana bermain!" if qz.get("no_prize_left")
+              else f"Anda dapat {qz['score']}/{QUIZ_N}. Perlu {PRIZE_AT} untuk menang, tetapi terima kasih kerana bermain!")
+    st.markdown(f'''<div class="winpop"><div class="wp-trophy">❤️</div>
+<div class="wp-t">{B("Thank you for trying" + (", " + who if who else "") + "!", "Terima kasih kerana mencuba!")}</div>
+<p>{B(msg_en, msg_ms)}</p>
+<div class="wp-box">{B("Would you like to take a memory photo with the DarahBot frame?", "Mahu ambil gambar kenangan dengan bingkai DarahBot?")}</div></div>''',
+                unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    if c1.button("No, thanks · Tidak", width="stretch"):
+        next_person()
+    if c2.button("📸 Yes, photo! · Ya", type="primary", width="stretch"):
+        qz["stage"] = "mem"
+        st.rerun()
+
+
 def show_result(qz, kind, jpg, label):
     """A smaller, centred preview (the download is still the full-size photo)."""
     from PIL import Image as _I
@@ -1460,20 +1586,22 @@ def memory_flow(qz):
     camera_script()
     st.markdown('<div class="cam-tip">📷 Tap the camera button: your camera opens. Snap your photo and the DarahBot frame is added straight away. '
                 '<span class="ms">Tekan butang kamera: kamera akan dibuka. Ambil gambar dan bingkai DarahBot terus ditambah.</span></div>', unsafe_allow_html=True)
-    mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo booth: 4 photos in a row · 4 gambar berturut-turut"],
-                    key=f"mode_{p}", horizontal=True)
     imgs = qz.setdefault("imgs", {})
-    if mode.startswith("🖼️"):
-        f = photo_input("📷 Take your photo · Ambil gambar", f"cam1_{p}")
+
+    def single_step(title):
+        f = photo_input(title, f"cam1_{p}")
         if f is not None:
             sig = ("single", f.file_id)
             if imgs.get("single_sig") != sig:
                 with st.spinner("Framing your photo… · Membingkai gambar…"):
-                    imgs["single"] = photoframe.make_single(f.getvalue(), name, score, QUIZ_N, win)
+                    imgs["single"] = photoframe.make_single(f.getvalue(), name, score, QUIZ_N, win, present=bool(win))
                     imgs["single_sig"] = sig
                     imgs["single_up"] = upload_memory(qz, "single", imgs["single"])
+                    prize_status.clear()
+                st.rerun()                     # refresh the steps (unlocks the next one)
             show_result(qz, "single", imgs["single"], "framed photo")
-    else:
+
+    def booth_step():
         st.markdown('<div class="cam-tip">🎞️ One press, 4 photos: a 3-second timer runs before each photo and the camera keeps going until all 4 are done. '
                     '<span class="ms">Satu tekan, 4 gambar: pemasa 3 saat sebelum setiap gambar, kamera terus berjalan sehingga 4 gambar siap.</span></div>',
                     unsafe_allow_html=True)
@@ -1489,21 +1617,31 @@ def memory_flow(qz):
                     imgs["strip"] = photoframe.make_strip([x.getvalue() for x in shots], name, score, QUIZ_N, win)
                     imgs["strip_sig"] = sig
                     imgs["strip_up"] = upload_memory(qz, "strip", imgs["strip"])
+                    prize_status.clear()
+                st.rerun()                     # refresh the steps (unlocks the next one)
             show_result(qz, "strip", imgs["strip"], "photo booth strip")
 
-    have_main = "single" in imgs or "strip" in imgs
-    if win and have_main:
-        st.markdown(f'''<div class="present-box"><b>{B("🎁 Now claim your present from Amirrul!", "🎁 Sekarang tuntut hadiah anda daripada Amirrul!")}</b>
-<p>{B("Then take one more photo holding your present.", "Kemudian ambil satu lagi gambar sambil memegang hadiah anda.")}</p></div>''', unsafe_allow_html=True)
-        f = photo_input("📷 Photo with your present · Gambar bersama hadiah", f"camP_{p}")
-        if f is not None:
-            sig = ("present", f.file_id)
-            if imgs.get("present_sig") != sig:
-                with st.spinner("Framing… · Membingkai…"):
-                    imgs["present"] = photoframe.make_single(f.getvalue(), name, score, QUIZ_N, True, present=True)
-                    imgs["present_sig"] = sig
-                    imgs["present_up"] = upload_memory(qz, "present", imgs["present"])
-            show_result(qz, "present", imgs["present"], "with your present")
+    if win:
+        # winners: both styles are needed (proof of the prize + the winners wall)
+        done1, done2 = "single" in imgs, "strip" in imgs
+        st.markdown(f'''<div class="win-steps"><div class="{"ok" if done1 else "on"}"><i>{"✓" if done1 else "1"}</i>{B("Framed photo with your prize", "Gambar berbingkai bersama hadiah")}</div>
+<div class="{"ok" if done2 else ("on" if done1 else "")}"><i>{"✓" if done2 else "2"}</i>{B("Photo booth strip", "Jalur photo booth")}</div></div>''', unsafe_allow_html=True)
+        st.markdown(f'<div class="step-h">{B("Step 1 · Framed photo: hold your prize!", "Langkah 1 · Gambar berbingkai: pegang hadiah anda!")}</div>', unsafe_allow_html=True)
+        single_step("📷 Winner photo · Gambar pemenang")
+        if done1:
+            st.markdown(f'<div class="step-h">{B("Step 2 · Photo booth: 4 fun poses", "Langkah 2 · Photo booth: 4 gaya")}</div>', unsafe_allow_html=True)
+            booth_step()
+        have_main = done1 and done2
+        if not have_main:
+            st.caption("Both winner photos are needed before you finish. · Kedua-dua gambar pemenang diperlukan.")
+    else:
+        mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo booth: 4 photos in a row · 4 gambar berturut-turut"],
+                        key=f"mode_{p}", horizontal=True)
+        if mode.startswith("🖼️"):
+            single_step("📷 Take your photo · Ambil gambar")
+        else:
+            booth_step()
+        have_main = "single" in imgs or "strip" in imgs
 
     if have_main:
         uploaded = any(imgs.get(k + "_up") for k in ("single", "strip", "present"))
@@ -1517,7 +1655,7 @@ def memory_flow(qz):
             st.caption("The QR download page is not connected right now, so please use the Download button above.")
         if st.button("✅ Done · Next person · Orang seterusnya", type="primary", width="stretch"):
             next_person()
-    elif st.button("Skip the photo · Langkau gambar", width="stretch"):
+    elif not win and st.button("Skip the photo · Langkau gambar", width="stretch"):
         next_person()
 
 
@@ -1536,10 +1674,14 @@ if show("quiz"):
                     "You don't need the exact number: close answers count.",
                     f"{QUIZ_N} soalan daripada data sebenar KKM dan syarat penderma. Dapat {PRIZE_AT} ke atas untuk hadiah. "
                     "Tidak perlu nombor tepat: jawapan hampir betul dikira betul.")
+            _ps = prize_status() or {}
+            _total = _ps.get("total", 10)
+            _left = _ps.get("left", _total)
             st.markdown(f'''<div class="quiz-start">
 <div><b>{QUIZ_N}</b><span>{B("questions", "soalan")}</span></div>
 <div><b>{PRIZE_AT}+</b><span>{B("to win", "untuk menang")}</span></div>
-<div><b>{len(QS)}</b><span>{B("question bank", "bank soalan")}</span></div></div>''', unsafe_allow_html=True)
+<div><b>{len(QS)}</b><span>{B("question bank", "bank soalan")}</span></div>
+<div class="hot"><b>{_left}<small>/{_total}</small></b><span>{B("prizes left", "hadiah tinggal")}</span></div></div>''', unsafe_allow_html=True)
             reg = st.session_state.get("reg")
             if not reg:
                 # step 1: type your email. Already answered our survey -> straight to the quiz.
@@ -1589,6 +1731,7 @@ if show("quiz"):
                         st.rerun()
                 st.caption(f"Questions are picked at random and not repeated for the next person "
                            f"({get_pool().remaining()} fresh questions left in this round).")
+            winners_wall()
 
         elif qz["stage"] == "q":
             q = QS[qz["ids"][qz["i"]]]
@@ -1635,30 +1778,40 @@ if show("quiz"):
 
         elif qz["stage"] == "done":
             score = sum(1 for r in qz["res"] if r[1] in ("correct", "close"))
-            win = score >= PRIZE_AT
-            qz["score"], qz["win"] = score, win
+            qz["score"] = score
+            qz.setdefault("mid", os.urandom(8).hex())
+            qz.setdefault("imgs", {})
+            if "win" not in qz:                        # decide once: a prize must still be left
+                if score >= PRIZE_AT:
+                    granted, n, left = claim_prize(qz)
+                    qz["win"], qz["prize_n"], qz["no_prize_left"] = granted, n, not granted
+                else:
+                    qz["win"] = False
+            win = qz["win"]
             who = html.escape(qz.get("name") or "")
             if win and not qz.get("celebrated"):
                 st.balloons()
                 qz["celebrated"] = True
                 qz["code"] = f"DB-{random.randint(1000, 9999)}"
+            if not qz.get("popped"):
+                qz["popped"] = True
+                (win_popup if win else thanks_popup)(qz)
             st.markdown(f'''<div class="quiz-score {"win" if win else ""}">
 <div class="big">{score}<span>/{QUIZ_N}</span></div>
 <div class="h3">{B(("🏆 Congratulations" + (", " + who if who else "") + "! You win a present!") if win else ("Thank you for trying" + (", " + who if who else "") + "!"),
                   "Tahniah! Anda menang hadiah!" if win else "Terima kasih kerana mencuba!")}</div>
-<p>{B("Please come to Amirrul at the booth to claim your present. Show him this screen." if win else f"You needed {PRIZE_AT} to win a present, but thank you for playing. Let's still capture your memory!",
+<p>{B("Please come to Amirrul at the booth to claim your present. Show him this screen." if win else ("Great score, but all the prizes are gone. Thank you for playing!" if qz.get("no_prize_left") else f"You needed {PRIZE_AT} to win a present, but thank you for playing. Let's still capture your memory!"),
       "Sila jumpa Amirrul di booth untuk menuntut hadiah anda. Tunjukkan skrin ini." if win else f"Perlu {PRIZE_AT} untuk hadiah, tetapi terima kasih kerana bermain. Jom tetap ambil gambar kenangan!")}</p>
 {f'<div class="prize-code">Prize code · Kod hadiah: <b>{qz["code"]}</b></div>' if win else ""}</div>''', unsafe_allow_html=True)
             with st.expander("📝 See all answers · Lihat semua jawapan"):
                 for k, (qid, (a, r)) in enumerate(zip(qz["ids"], qz["res"]), 1):
                     qq = QS[qid]
                     st.markdown(f"**{k}. {qq['en']}**  \n{'✅' if r in ('correct', 'close') else '❌'} you said: _{a or '–'}_ · answer: **{qq['show']}**")
-            if st.button("📸 Capture your memory · Ambil gambar kenangan", type="primary", width="stretch"):
+            if st.button("📸 Take my winner photos · Ambil gambar pemenang" if win else "📸 Capture your memory · Ambil gambar kenangan",
+                         type="primary", width="stretch"):
                 qz["stage"] = "mem"
-                qz["mid"] = os.urandom(8).hex()
-                qz["imgs"] = {}
                 st.rerun()
-            if st.button("🔁 Next person · Orang seterusnya", width="stretch"):
+            if not win and st.button("🔁 Next person · Orang seterusnya", width="stretch"):
                 next_person()
 
         else:  # stage == "mem": memory photos (only reachable after finishing the quiz)

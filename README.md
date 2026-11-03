@@ -67,6 +67,13 @@ visitor message → detect_intent() → find_states() / find_years() / find_metr
 
 No AI model runs inside the app. Every number comes from a pandas calculation.
 
+## Prizes and the winners wall
+- `prize.php` (Hostinger) keeps the list of winners. Change `$TOTAL = 10;` at the top to the number of presents.
+- The quiz page shows a red **prizes left** box (e.g. 7/10) that counts down for every winner, on every device.
+- Score 5 or more while a prize is left: a congratulations pop-up (claim the prize from Amirrul), then **two winner photos** are required: a framed photo holding the prize and a photo booth strip.
+- Lower score (or no prizes left): a thank-you pop-up asks if they would like a memory photo.
+- **Winners wall:** an auto-moving slideshow on the quiz page. Winner 1 shows the framed photo, winner 2 the photo strip, winner 3 the framed photo, and so on.
+
 ## Quiz registration through our survey
 - Before the quiz, each visitor types their **email**. DarahBot asks the survey site (`check.php`, protected by the secret key) whether that email has answered before.
   - Already answered: registered straight away, with the name from the survey.
