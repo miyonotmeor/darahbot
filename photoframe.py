@@ -243,7 +243,7 @@ def make_single(photo_bytes, name="", score=None, total=6, winner=False, present
     # top-right: the visitor's question (red bubble) with time and ticks
     fb, fsm = font(36 * s, "semi"), font(18 * s, "semi")
     right = W - pad
-    q = "Hi DarahBot, did I win?"
+    q = "Hi DarahBot, did I win?" if winner else "Hi DarahBot, how did I do?"
     qw = d.textlength(q, font=fb) + 70 * s
     y = pad + 10 * s
     _shadow(base, (int(right - qw), int(y), int(right), int(y + 84 * s)), int(42 * s), int(16 * s), (0, int(10 * s)), 80)
@@ -256,7 +256,7 @@ def make_single(photo_bytes, name="", score=None, total=6, winner=False, present
     y2 = H - pad - 330 * s
     lx = pad + 80 * s
     a1 = (f"Yes, {first}! You scored {score}/{total} and won a prize." if winner
-          else f"{first}, you scored {score}/{total}. Thank you for playing!")
+          else f"You scored {score}/{total}, {first}! Thanks for playing. Every drop counts.")
     a2 = f"Evidence · quiz score {score}/{total} · {_date()}"
     f2 = font(22 * s, "semi")
     while d.textlength(a1, font=fb) > W * 0.62 and fb.size > 18 * s:     # long names on narrow photos

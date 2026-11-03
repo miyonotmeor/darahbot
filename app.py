@@ -1463,11 +1463,11 @@ def upload_memory(qz, kind, jpg):
 CAMERA_JS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "camera.js"), encoding="utf-8").read()
 
 
-def camera_script(name=""):
+def camera_script(name="", win=False):
     """Turns the photo boxes into camera buttons (see camera.js): a full-screen camera with a 3-2-1 countdown and a
     see-through preview of the DarahBot frame (with the visitor's name), so they can place their face. No picking files."""
     import json
-    st.iframe("<script>(function(){var d=window.parent.document;d.body.dataset.dbname=" + json.dumps(name or "") + ";"
+    st.iframe("<script>(function(){var d=window.parent.document;d.body.dataset.dbname=" + json.dumps(name or "") + ";d.body.dataset.dbwin=" + json.dumps("1" if win else "0") + ";"
               "if(d.getElementById('dbcam-js7'))return;"
               "var s=d.createElement('script');s.id='dbcam-js7';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
               ";d.head.appendChild(s);})();</script>", height=1)
@@ -1584,7 +1584,7 @@ def memory_flow(qz):
     heading("Capture your memory", "Ambil gambar kenangan",
             "Choose a style, then take your photo with the camera.",
             "Pilih gaya, kemudian ambil gambar dengan kamera.")
-    camera_script(name)
+    camera_script(name, win)
     st.markdown('<div class="cam-tip">📷 Tap the camera button: your camera opens. Snap your photo and the DarahBot frame is added straight away. '
                 '<span class="ms">Tekan butang kamera: kamera akan dibuka. Ambil gambar dan bingkai DarahBot terus ditambah.</span></div>', unsafe_allow_html=True)
     imgs = qz.setdefault("imgs", {})

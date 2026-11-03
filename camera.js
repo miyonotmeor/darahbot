@@ -166,7 +166,7 @@
       let html = '<div class="g-band" style="border-width:' + px(Math.max(3, band)) + ';border-radius:' + px(48 * s) + '"></div>';
       html += box('g-glass', pad - 10 * s, pad - 10 * s, 650 * s, 180 * s,
         '<b style="font-size:' + px(58 * s) + '">DarahBot</b><small style="font-size:' + px(22 * s) + '">@amirrulmukminin · @ayuni</small>', 'border-radius:' + px(44 * s));
-      html += box('g-red', w - pad - 470 * s, pad + 10 * s, 470 * s, 84 * s, '<span style="font-size:' + px(36 * s) + '">Hi DarahBot, did I win?</span>', 'border-radius:' + px(42 * s));
+      html += box('g-red', w - pad - 520 * s, pad + 10 * s, 520 * s, 84 * s, '<span style="font-size:' + px(36 * s) + '">' + (document.body.dataset.dbwin === '1' ? 'Hi DarahBot, did I win?' : 'Hi DarahBot, how did I do?') + '</span>', 'border-radius:' + px(42 * s));
       html += box('g-glass', pad + 80 * s, h - pad - 330 * s, Math.min(900 * s, w * 0.62), 160 * s,
         '<span style="font-size:' + px(30 * s) + '">DarahBot answer · jawapan</span>', 'border-radius:' + px(40 * s));
       html += box('g-name', w - pad - w * 0.46, h - pad - 150 * s, w * 0.46, 170 * s,
