@@ -1,9 +1,9 @@
 """
 photoframe.py  -  DarahBot memory photos
 =========================================
-make_single(): one photo inside the DarahBot frame, on a LANDSCAPE page. The photo is never cropped:
-               landscape or portrait, the whole picture is shown.
-make_strip():  classic photo-booth strip (4 photos stacked) in the DarahBot red theme.
+make_single(): the "chat" design, drawn ON TOP of the photo (frosted-glass DarahBot header, the visitor's question,
+               DarahBot's answer with evidence, the name in yellow). The whole photo is kept, any orientation.
+make_strip():  photo booth print: 3 photos per strip, two identical strips side by side, red DarahBot theme.
 Both return JPEG bytes. Photos come from the device's own camera (full quality).
 """
 import datetime as dt
@@ -160,205 +160,191 @@ def _dashed_box(d, box, s, color=(255, 255, 255)):
         d.rectangle([hx - hs, hy - hs, hx + hs, hy + hs], fill="white", outline=color, width=max(1, int(2 * s)))
 
 
-W_, H_ = 2400, 1700          # every memory photo is landscape, like the reference design
+YELLOW = (255, 226, 130)
+MAKERS = "@amirrulmukminin  ·  @ayuni"
 
 
-def _canvas(present=False):
-    """Cream page, soft pink circle and the DarahBot header."""
-    W, H, s = W_, H_, 1.0
-    base = Image.new("RGBA", (W, H), PAPER + (255,))
-    d = ImageDraw.Draw(base)
-    R = int(H * 0.42)
-    cx, cy = int(W * 0.80), int(H * 0.42)
-    d.ellipse([cx - R, cy - R, cx + R, cy + R], fill=BLUSH)
-    lr = int(58 * s)
-    hx, hy = int(W * .06) + lr, int(H * .07) + lr
-    draw_logo(base, hx, hy, lr)
-    d = ImageDraw.Draw(base)
-    d.text((hx + lr + int(26 * s), hy - int(62 * s)), "DarahBot", fill=INK, font=font(92 * s, "black"))
-    d.text((hx + lr + int(30 * s), hy + int(40 * s)), "CSC649 Data Science Exhibition  ·  UiTM Kampus Jasin",
-           fill=MUTED, font=font(30 * s, "semi"))
-    return base, s
+def _date():
+    return dt.date.today().strftime("%d %b %Y")
 
 
-# area where the red photo panel may go (left part of the page)
-BOX = (int(W_ * .075), int(H_ * .20), int(W_ * .70), int(H_ * .91))
+def _red_gradient(W, H, diag=True):
+    yy, xx = np.mgrid[0:H, 0:W]
+    t = np.clip(xx / W * 0.5 + yy / H * 0.6, 0, 1)[..., None] if diag else np.clip(yy / H * 0.85 + xx / W * 0.15, 0, 1)[..., None]
+    return Image.fromarray((np.array(RED2) * (1 - t) + np.array(WINE) * t).astype("uint8"), "RGB").convert("RGBA")
 
 
-def _place_panel(base, pw, ph, s):
-    """Draw the red panel of size pw x ph centred in BOX; return its box."""
-    bx0, by0, bx1, by1 = BOX
-    px0 = bx0 + (bx1 - bx0 - pw) // 2
-    py0 = by0 + (by1 - by0 - ph) // 2
-    px1, py1 = px0 + pw, py0 + ph
-    _shadow(base, (px0, py0, px1, py1), int(60 * s), int(30 * s), (0, int(30 * s)), 90)
-    base.alpha_composite(_gradient_panel(pw, ph, int(60 * s)), (px0, py0))
-    return px0, py0, px1, py1
+def _glass(base, box, r, s, alpha=170, blur=26, shadow=True):
+    """Frosted glass panel: the photo behind is blurred and tinted white."""
+    x0, y0, x1, y1 = [int(v) for v in box]
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(base.width, x1), min(base.height, y1)
+    if shadow:
+        _shadow(base, (x0, y0, x1, y1), int(r), int(20 * s), (0, int(12 * s)), 70)
+    region = base.crop((x0, y0, x1, y1)).filter(ImageFilter.GaussianBlur(blur * s))
+    region.alpha_composite(Image.new("RGBA", region.size, (255, 255, 255, alpha)))
+    m = Image.new("L", region.size, 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, region.width - 1, region.height - 1], radius=int(r), fill=255)
+    base.paste(region, (x0, y0), m)
+    ImageDraw.Draw(base).rounded_rectangle([x0, y0, x1, y1], radius=int(r), outline=(255, 255, 255, 170), width=max(2, int(2.5 * s)))
 
 
-def _decorate(base, s, panel, name, score, total, winner, present):
-    """Name in a dashed box, the tool-grid of stats, floating cards and the footer (like the reference)."""
+def _tshadow(base, xy, text, f, fill, blur, anchor="la"):
+    sh = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).text((xy[0] + 4, xy[1] + 6), text, font=f, fill=(40, 0, 8, 170), anchor=anchor)
+    base.alpha_composite(sh.filter(ImageFilter.GaussianBlur(blur)))
+    ImageDraw.Draw(base).text(xy, text, font=f, fill=fill, anchor=anchor)
+
+
+def make_single(photo_bytes, name="", score=None, total=6, winner=False, present=False):
+    """The chat design on top of the photo. Layout uses s = (short side / 1400), the same numbers as the live
+    camera guide in camera.js, so what visitors see on the camera matches the final photo."""
+    im = load_photo(photo_bytes)
+    k = 2400 / max(im.size)
+    im = im.resize((int(im.width * k), int(im.height * k)), Image.LANCZOS)
+    base = im.convert("RGBA")
     W, H = base.size
-    px0, py0, px1, py1 = panel
-    pw, ph = px1 - px0, py1 - py0
-    date = dt.date.today().strftime("%d %b %Y")
-    sc = f"{score}/{total}" if score is not None else "–"
-    cw = ch = int(230 * s)
+    s = min(W, H) / 1400
+    score = 0 if score is None else score
+    who = (name or "Blood hero").strip()
+    first = who.split()[0]
 
-    # card under the middle of the panel ("Thank you" / "Winner")
-    tx = int(px0 + pw * 0.62 - cw / 2)
-    ty = min(py1 - int(ch * 0.42), H - ch - int(30 * s))
+    # soft shading at the bottom so the text reads on any photo
+    yy = np.linspace(0, 1, H)[:, None]
+    a = (np.clip((yy - 0.35) / 0.65, 0, 1) ** 1.7 * 150).astype("uint8")
+    sh = np.zeros((H, W, 4), "uint8"); sh[..., 0] = 50; sh[..., 3] = np.broadcast_to(a, (H, W))
+    base.alpha_composite(Image.fromarray(sh, "RGBA"))
 
-    # name, bottom-left on the photo, shrunk until it fits
-    who = (name or "Blood hero").strip()[:30]
+    # thin red border on the photo (rounded inside)
+    band = int(18 * s)
+    m = Image.new("L", (W, H), 255)
+    ImageDraw.Draw(m).rounded_rectangle([band, band, W - band, H - band], radius=int(48 * s), fill=0)
+    fr = Image.new("RGBA", (W, H), (0, 0, 0, 0)); fr.paste(_red_gradient(W, H), (0, 0), m); base.alpha_composite(fr)
+    pad = band + 60 * s
+
+    # top-left: DarahBot header (logo, title, online line, makers)
+    lr = int(46 * s)
     d = ImageDraw.Draw(base)
-    fsize = 150 * s
-    while fsize > 60 * s and d.textlength(who, font=font(fsize, "black")) > pw * 0.84:
-        fsize -= 6 * s
-    f = font(fsize, "black")
-    tw = d.textlength(who, font=f)
-    nx = px0 + int(60 * s)
-    ny = py1 - int(70 * s) - int(fsize * 1.05)
-    if nx + tw + 26 * s > tx - 10 * s:            # would touch the bottom card: lift the name above it
-        ny = min(ny, ty - int(40 * s) - int(fsize * 1.18))
-    shadow_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow_layer).text((nx + 4 * s, ny + 6 * s), who, fill=(40, 0, 8, 150), font=f)
-    base.alpha_composite(shadow_layer.filter(ImageFilter.GaussianBlur(6 * s)))
+    f_t, f_o, f_m = font(58 * s, "black"), font(21 * s, "semi"), font(22 * s, "semi")
+    l2 = "online · CSC649 Data Science Exhibition"
+    hw = 36 * s + lr * 2 + 26 * s + max(d.textlength("DarahBot", font=f_t), d.textlength(l2, font=f_o) + 24 * s,
+                                        d.textlength(MAKERS, font=f_m)) + 50 * s
+    hh = 180 * s
+    hx, hy = pad - 10 * s, pad - 10 * s
+    _glass(base, (hx, hy, hx + hw, hy + hh), 44 * s, s, alpha=180)
+    draw_logo(base, hx + 36 * s + lr, hy + hh / 2, lr)
     d = ImageDraw.Draw(base)
-    d.text((nx, ny), who, fill=(255, 226, 130), font=f)
+    tx = hx + 36 * s + lr * 2 + 26 * s
+    d.text((tx, hy + 54 * s), "DarahBot", fill=INK, font=f_t, anchor="lm")
+    d.ellipse([tx, hy + 100 * s, tx + 15 * s, hy + 115 * s], fill=(29, 138, 90))
+    d.text((tx + 24 * s, hy + 108 * s), l2, fill=MUTED, font=f_o, anchor="lm")
+    d.text((tx, hy + 146 * s), MAKERS, fill=RED, font=f_m, anchor="lm")
 
-    # tool grid with the stats, overlapping the right edge of the panel
-    tiles = [("drop", "DarahBot", ""), ("trophy", sc, "Quiz"), ("star", "Winner" if winner else "Player", ""),
-             ("bars", "KKM", "data"), ("pin", "UiTM", "Jasin"), ("calendar", date.split()[0] + " " + date.split()[1], date.split()[2])]
-    if present:
-        tiles[2] = ("heart", "Prize!", "Hadiah")
-    tw_ = th_ = int(150 * s)
-    gap, cols = int(16 * s), 3
-    gw = cols * tw_ + (cols - 1) * gap + 2 * gap
-    gh = 2 * th_ + gap + 2 * gap
-    gx = min(px1 - int(gw * 0.30), W - gw - int(W * .03))
-    gy = py0 + int(ph * 0.10)
-    _shadow(base, (gx, gy, gx + gw, gy + gh), int(34 * s), int(22 * s), (0, int(14 * s)), 70)
+    # top-right: the visitor's question (red bubble) with time and ticks
+    fb, fsm = font(36 * s, "semi"), font(18 * s, "semi")
+    right = W - pad
+    q = "Hi DarahBot, did I win?"
+    qw = d.textlength(q, font=fb) + 70 * s
+    y = pad + 10 * s
+    _shadow(base, (int(right - qw), int(y), int(right), int(y + 84 * s)), int(42 * s), int(16 * s), (0, int(10 * s)), 80)
     d = ImageDraw.Draw(base)
-    d.rounded_rectangle([gx, gy, gx + gw, gy + gh], radius=int(34 * s), fill=(255, 255, 255))
-    for i, (ic, t1, t2) in enumerate(tiles):
-        r, c = divmod(i, cols)
-        x = gx + gap + c * (tw_ + gap)
-        y = gy + gap + r * (th_ + gap)
-        hi = (i == 1)
-        d.rounded_rectangle([x, y, x + tw_, y + th_], radius=int(22 * s), fill=(255, 240, 241) if hi else "white",
-                            outline=(231, 168, 176) if hi else LINE, width=max(2, int(3 * s)))
-        _icon(base, ic, x + tw_ / 2, y + th_ * .36, th_ * .16)
-        d = ImageDraw.Draw(base)
-        f1 = font(th_ * (.17 if len(t1) <= 7 else .14), "semi")
-        w1 = d.textlength(t1, font=f1)
-        d.text((x + tw_ / 2 - w1 / 2, y + th_ * .58), t1, fill=INK, font=f1)
-        if t2:
-            f2 = font(th_ * .11)
-            w2 = d.textlength(t2, font=f2)
-            d.text((x + tw_ / 2 - w2 / 2, y + th_ * .79), t2, fill=MUTED, font=f2)
+    d.rounded_rectangle([right - qw, y, right, y + 84 * s], radius=int(42 * s), fill=RED)
+    d.text((right - qw + 35 * s, y + 42 * s), q, fill="white", font=fb, anchor="lm")
+    d.text((right - 10 * s, y + 104 * s), dt.datetime.now().strftime("%I:%M %p").lstrip("0") + "  ✓✓", fill=(255, 235, 238), font=fsm, anchor="rm")
 
-    # floating cards: score on the left edge, thanks at the bottom, Jasin on the right with a dashed line
-    _card(base, max(int(W * .015), px0 - int(cw * 0.55)), py0 + int(ph * 0.30), cw, ch, s, sc, "Quiz score", "trophy")
-    _card(base, tx, ty, cw, ch, s, "Winner" if present else "Thank you", "Terima kasih", "heart")
-    jx = max(int(W * .83), gx + gw - cw)
-    jy = min(max(int(H * .64), gy + gh + int(50 * s)), H - ch - int(H * .09))
-    if jx < px1 + int(20 * s) and jy < py1:      # keep it off the photo
-        jx = min(px1 + int(40 * s), W - cw - int(W * .02))
-    _card(base, jx, jy, cw, ch, s, "Jasin", "UiTM Melaka", "pin")
+    # bottom-left: DarahBot's answer (glass) with evidence + typing dots
+    y2 = H - pad - 330 * s
+    lx = pad + 80 * s
+    a1 = (f"Yes, {first}! You scored {score}/{total} and won a prize." if winner
+          else f"{first}, you scored {score}/{total}. Thank you for playing!")
+    a2 = f"Evidence · quiz score {score}/{total} · {_date()}"
+    f2 = font(22 * s, "semi")
+    while d.textlength(a1, font=fb) > W * 0.62 and fb.size > 18 * s:     # long names on narrow photos
+        fb = font(fb.size - 2 * s, "semi")
+    bw = max(d.textlength(a1, font=fb), d.textlength(a2, font=f2) + 40 * s) + 80 * s
+    _glass(base, (lx, y2, lx + bw, y2 + 160 * s), 40 * s, s, alpha=205)
+    draw_logo(base, pad + 30 * s, y2 + 130 * s, 30 * s)
     d = ImageDraw.Draw(base)
-    for y in range(jy + ch, H - int(70 * s), int(26 * s)):
-        d.line([(jx + cw // 2, y), (jx + cw // 2, y + int(12 * s))], fill=INK, width=max(2, int(3 * s)))
+    d.text((lx + 40 * s, y2 + 52 * s), a1, fill=INK, font=fb, anchor="lm")
+    d.rounded_rectangle([lx + 40 * s, y2 + 92 * s, lx + 80 * s + d.textlength(a2, font=f2), y2 + 136 * s], radius=int(12 * s), fill=(255, 240, 241))
+    d.text((lx + 60 * s, y2 + 114 * s), a2, fill=RED, font=f2, anchor="lm")
+    _glass(base, (lx, y2 + 185 * s, lx + 130 * s, y2 + 245 * s), 30 * s, s, alpha=190, shadow=False)
+    d = ImageDraw.Draw(base)
+    for i, al in enumerate((255, 180, 110)):
+        x = lx + 32 * s + i * 26 * s
+        d.ellipse([x, y2 + 207 * s, x + 16 * s, y2 + 223 * s], fill=RED + (al,))
 
-    foot = f"Every drop counts · Setiap titis bermakna   ·   {date}   ·   darahbot.streamlit.app"
-    ff = font(26 * s)
-    fw = d.textlength(foot, font=ff)
-    d.text((W - fw - int(W * .03), H - int(52 * s)), foot, fill=MUTED, font=ff)
+    # bottom-right: the name in yellow
+    fN = font(150 * s, "black")
+    while ImageDraw.Draw(base).textlength(who, font=fN) > W * 0.46 and fN.size > 60 * s:
+        fN = font(fN.size - 6 * s, "black")
+    _tshadow(base, (right, H - pad + 10 * s), who, fN, YELLOW, 8 * s, "rs")
+    _tshadow(base, (right - 4 * s, H - pad + 40 * s), "Winner · Tahniah!" if winner else "Thank you · Terima kasih",
+             font(26 * s, "semi"), "white", 4 * s, "rm")
     out = io.BytesIO()
     base.convert("RGB").save(out, format="JPEG", quality=93)
     return out.getvalue()
 
 
-def make_single(photo_bytes, name="", score=None, total=6, winner=False, present=False):
-    """One photo in the DarahBot frame. The page is always landscape and the photo is NEVER cropped:
-    a landscape photo gets a wide panel, a portrait photo a tall one, both on the same landscape page."""
-    photo = load_photo(photo_bytes)
-    base, s = _canvas(present)
-    inset = int(22 * s)
-    bw, bh = BOX[2] - BOX[0] - 2 * inset, BOX[3] - BOX[1] - 2 * inset
-    k = min(bw / photo.width, bh / photo.height)
-    ph = photo.resize((max(1, int(photo.width * k)), max(1, int(photo.height * k))), Image.LANCZOS)
-    panel = _place_panel(base, ph.width + 2 * inset, ph.height + 2 * inset, s)
-    base.alpha_composite(_rounded(ph, int(44 * s)), (panel[0] + inset, panel[1] + inset))
-    return _decorate(base, s, panel, name, score, total, winner, present)
-
-
 def make_strip(photos, name="", score=None, total=6, winner=False):
-    """Classic photo-booth STRIP in the DarahBot red theme: 4 photos stacked, film holes on the sides,
-    logo on top, name + score at the bottom. Photos are never cropped."""
-    ims = [load_photo(p, 1600) for p in photos][:4]
-    W, m, pw, gap = 1200, 110, 980, 46
-    sizes = []
-    for im in ims:
-        h = int(pw * im.height / im.width)
-        sizes.append((pw, min(h, int(pw * 1.45))))
-    head, foot = 300, 470
-    H = head + sum(h for _, h in sizes) + gap * (len(ims) - 1) + foot
-    # red gradient background with a soft dot pattern
-    yy, xx = np.mgrid[0:H, 0:W]
-    t = np.clip(yy / H * 0.85 + xx / W * 0.15, 0, 1)[..., None]
-    bg = (np.array(RED2) * (1 - t) + np.array(WINE) * t).astype("uint8")
-    base = Image.fromarray(bg, "RGB").convert("RGBA")
-    dots = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    dd = ImageDraw.Draw(dots)
-    for y in range(20, H, 40):
-        for x in range(20 + (y // 40 % 2) * 20, W, 40):
+    """Photo booth print: 3 photos per strip, two identical strips side by side (cut down the middle)."""
+    ims = [load_photo(p, 1600) for p in photos][:3]
+    score = 0 if score is None else score
+    SW, m, g, bd = 600, 46, 22, 9
+    pw = SW - 2 * m
+    asp = sorted(i.width / i.height for i in ims)[len(ims) // 2]
+    ph = int(pw / max(0.6, min(asp, 1.9)))
+    head, foot = 380, 110
+    H = head + len(ims) * ph + (len(ims) - 1) * g + foot
+    strip = _red_gradient(SW, H, diag=False)
+    dots = Image.new("RGBA", (SW, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(dots)
+    for y in range(16, H, 32):
+        for x in range(16 + (y // 32 % 2) * 16, SW, 32):
             dd.ellipse([x - 2, y - 2, x + 2, y + 2], fill=(255, 255, 255, 22))
-    base.alpha_composite(dots)
-    d = ImageDraw.Draw(base)
-    # film holes down both sides
-    for y in range(40, H - 30, 70):
-        for x in (26, W - 26 - 30):
-            d.rounded_rectangle([x, y, x + 30, y + 40], radius=8, fill=(40, 2, 8, 255))
-    # header
-    draw_logo(base, W / 2 - 230, 150, 62)
-    d = ImageDraw.Draw(base)
-    d.text((W / 2 - 150, 92), "DarahBot", fill="white", font=font(104, "black"))
-    sub = "PHOTO BOOTH  ·  CSC649 DATA SCIENCE EXHIBITION"
-    f = font(26, "semi")
-    d.text(((W - d.textlength(sub, font=f)) / 2, 222), sub, fill=(255, 194, 202), font=f)
-    # photos (whole picture, white border, shadow)
-    y = head
-    for im, (w, h) in zip(ims, sizes):
-        k = min(w / im.width, h / im.height)
-        p = im.resize((int(im.width * k), int(im.height * k)), Image.LANCZOS)
-        x = (W - p.width) // 2
-        yy0 = y + (h - p.height) // 2
-        _shadow(base, (x - 12, yy0 - 12, x + p.width + 12, yy0 + p.height + 12), 30, 18, (0, 14), 120)
-        d = ImageDraw.Draw(base)
-        d.rounded_rectangle([x - 12, yy0 - 12, x + p.width + 12, yy0 + p.height + 12], radius=30, fill="white")
-        base.alpha_composite(_rounded(p, 22), (x, yy0))
-        y += h + gap
-    # footer: name in a dashed box, score pill, place and date
-    y = H - foot + 60
-    who = (name or "Blood hero").strip()[:30]
-    d = ImageDraw.Draw(base)
-    fs = 120
-    while fs > 56 and d.textlength(who, font=font(fs, "black")) > W - 2 * m - 60:
-        fs -= 6
-    f = font(fs, "black")
-    tw = d.textlength(who, font=f)
-    nx = (W - tw) / 2
-    d.text((nx, y), who, fill=(255, 226, 130), font=f)
-    pill = (f"Quiz {score}/{total}" if score is not None else "DarahBot") + ("  ·  Winner 🏆".replace(" 🏆", "") if winner else "  ·  Thank you!")
-    fp = font(40, "semi")
-    pwid = d.textlength(pill, font=fp) + 70
-    py = y + fs * 1.2 + 46
-    d.rounded_rectangle([(W - pwid) / 2, py, (W + pwid) / 2, py + 76], radius=38, fill="white")
-    d.text(((W - pwid) / 2 + 35, py + 14), pill, fill=RED, font=fp)
-    line = "UiTM Kampus Jasin  ·  " + dt.date.today().strftime("%d %b %Y") + "  ·  darahbot.streamlit.app"
-    fl = font(28)
-    d.text(((W - d.textlength(line, font=fl)) / 2, py + 112), line, fill=(255, 220, 225), font=fl)
+    strip.alpha_composite(dots)
+    d = ImageDraw.Draw(strip)
+    for y in range(26, H - 20, 54):                              # film holes
+        for x in (12, SW - 12 - 18):
+            d.rounded_rectangle([x, y, x + 18, y + 28], radius=5, fill=(40, 2, 8, 255))
+    cx = SW / 2
+    fsub = font(15, "semi")
+    sub = "CSC649 · DATA SCIENCE EXHIBITION"
+    d.text((cx - d.textlength(sub, font=fsub) / 2, 40), sub, fill=(255, 194, 202), font=fsub)
+    ft = font(64, "black")
+    tw = d.textlength("DarahBot", font=ft)
+    x0 = cx - (tw + 70 + 14) / 2
+    draw_logo(strip, x0 + 35, 112, 35)
+    d = ImageDraw.Draw(strip)
+    d.text((x0 + 84, 74), "DarahBot", fill="white", font=ft)
+    who = (name or "Blood hero").strip()
+    fs = 70
+    while fs > 34 and d.textlength(who, font=font(fs, "black")) > SW - 2 * m - 20:
+        fs -= 3
+    fN = font(fs, "black")
+    d.text((cx - d.textlength(who, font=fN) / 2, 172), who, fill=YELLOW, font=fN)
+    fd = font(22, "semi")
+    d.text((cx - d.textlength(_date(), font=fd) / 2, 172 + fs * 1.12), _date(), fill=(255, 220, 225), font=fd)
+    pill = f"Quiz {score}/{total}  ·  " + ("Winner!" if winner else "Thank you!")
+    fp = font(24, "semi")
+    pwd = d.textlength(pill, font=fp) + 44
+    py = 172 + fs * 1.12 + 44
+    d.rounded_rectangle([cx - pwd / 2, py, cx + pwd / 2, py + 46], radius=23, fill="white")
+    d.text((cx - pwd / 2 + 22, py + 9), pill, fill=RED, font=fp)
+    top = H - foot - (len(ims) * ph + (len(ims) - 1) * g)
+    for i, im in enumerate(ims):
+        y = top + i * (ph + g)
+        _shadow(strip, (m - bd, y - bd, m + pw + bd, y + ph + bd), 18, 10, (0, 8), 110)
+        d = ImageDraw.Draw(strip)
+        d.rounded_rectangle([m - bd, y - bd, m + pw + bd, y + ph + bd], radius=18, fill="white")
+        k = min(pw / im.width, ph / im.height)
+        p = im.resize((max(1, int(im.width * k)), max(1, int(im.height * k))), Image.LANCZOS)
+        strip.alpha_composite(_rounded(p, 12), (int(m + (pw - p.width) / 2), int(y + (ph - p.height) / 2)))
+    d = ImageDraw.Draw(strip)
+    fm = font(22, "semi")
+    d.text((cx - d.textlength(MAKERS, font=fm) / 2, H - foot / 2 - 12), MAKERS, fill="white", font=fm)
+    sheet = Image.new("RGB", (SW * 2, H), WINE)
+    sheet.paste(strip.convert("RGB"), (0, 0)); sheet.paste(strip.convert("RGB"), (SW, 0))
+    ImageDraw.Draw(sheet).line([(SW, 0), (SW, H)], fill=(255, 255, 255), width=2)
     out = io.BytesIO()
-    base.convert("RGB").save(out, format="JPEG", quality=93)
+    sheet.save(out, format="JPEG", quality=93)
     return out.getvalue()

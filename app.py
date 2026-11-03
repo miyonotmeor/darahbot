@@ -441,7 +441,7 @@ a.reg-btn { display:block; text-align:center; text-decoration:none !important; c
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button svg, [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button span { opacity:0; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"] button::after { content:"📷  Open camera · Buka kamera"; position:absolute; inset:0; display:flex;
   align-items:center; justify-content:center; text-align:center; padding:0 14px; color:#fff; font: 800 clamp(15px, 2.2vw, 19px)/1.2 var(--display); }
-[class*="st-key-cambooth"] [data-testid="stFileUploaderDropzone"] button::after { content:"🎞️  Start photo booth · Mula (4 gambar)"; }
+[class*="st-key-cambooth"] [data-testid="stFileUploaderDropzone"] button::after { content:"🎞️  Start photo booth · Mula (3 gambar)"; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) { min-height:60px; }
 [class*="st-key-cam"] [data-testid="stFileUploaderDropzone"]:has([data-testid="stFileChips"]) button::after { content:"↺  Retake · Ambil semula"; font-size:16px; }
 [class*="st-key-cam"] [data-testid="stFileChips"] > *:not(button) { display:none !important; }
@@ -1463,12 +1463,13 @@ def upload_memory(qz, kind, jpg):
 CAMERA_JS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "camera.js"), encoding="utf-8").read()
 
 
-def camera_script():
-    """Turns the photo boxes into camera buttons (see camera.js): the phone/iPad Camera app opens directly,
-    computers get a full-screen, full-resolution webcam with a 3-2-1 countdown. No picking files."""
+def camera_script(name=""):
+    """Turns the photo boxes into camera buttons (see camera.js): a full-screen camera with a 3-2-1 countdown and a
+    see-through preview of the DarahBot frame (with the visitor's name), so they can place their face. No picking files."""
     import json
-    st.iframe("<script>(function(){var d=window.parent.document;if(d.getElementById('dbcam-js6'))return;"
-              "var s=d.createElement('script');s.id='dbcam-js6';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
+    st.iframe("<script>(function(){var d=window.parent.document;d.body.dataset.dbname=" + json.dumps(name or "") + ";"
+              "if(d.getElementById('dbcam-js7'))return;"
+              "var s=d.createElement('script');s.id='dbcam-js7';s.textContent=" + json.dumps(CAMERA_JS).replace("</", "<\\/") +
               ";d.head.appendChild(s);})();</script>", height=1)
 
 
@@ -1583,7 +1584,7 @@ def memory_flow(qz):
     heading("Capture your memory", "Ambil gambar kenangan",
             "Choose a style, then take your photo with the camera.",
             "Pilih gaya, kemudian ambil gambar dengan kamera.")
-    camera_script()
+    camera_script(name)
     st.markdown('<div class="cam-tip">📷 Tap the camera button: your camera opens. Snap your photo and the DarahBot frame is added straight away. '
                 '<span class="ms">Tekan butang kamera: kamera akan dibuka. Ambil gambar dan bingkai DarahBot terus ditambah.</span></div>', unsafe_allow_html=True)
     imgs = qz.setdefault("imgs", {})
@@ -1602,15 +1603,15 @@ def memory_flow(qz):
             show_result(qz, "single", imgs["single"], "framed photo")
 
     def booth_step():
-        st.markdown('<div class="cam-tip">🎞️ One press, 4 photos: a 3-second timer runs before each photo and the camera keeps going until all 4 are done. '
-                    '<span class="ms">Satu tekan, 4 gambar: pemasa 3 saat sebelum setiap gambar, kamera terus berjalan sehingga 4 gambar siap.</span></div>',
+        st.markdown('<div class="cam-tip">🎞️ One press, 3 photos: a 3-second timer runs before each photo and the camera keeps going until all 3 are done. '
+                    '<span class="ms">Satu tekan, 3 gambar: pemasa 3 saat sebelum setiap gambar, kamera terus berjalan sehingga 3 gambar siap.</span></div>',
                     unsafe_allow_html=True)
-        files = st.file_uploader("🎞️ Photo booth · 4 photos", type=["jpg", "jpeg", "png", "heic", "heif", "webp"],
+        files = st.file_uploader("🎞️ Photo booth · 3 photos", type=["jpg", "jpeg", "png", "heic", "heif", "webp"],
                                  accept_multiple_files=True, key=f"cambooth_{p}")
-        shots = list(files or [])[-4:]                    # a retake replaces the last set
-        if 0 < len(shots) < 4:
-            st.caption(f"{len(shots)} / 4 photos · gambar")
-        if len(shots) == 4:
+        shots = list(files or [])[-3:]                    # a retake replaces the last set
+        if 0 < len(shots) < 3:
+            st.caption(f"{len(shots)} / 3 photos · gambar")
+        if len(shots) == 3:
             sig = ("strip",) + tuple(x.file_id for x in shots)
             if imgs.get("strip_sig") != sig:
                 with st.spinner("Making your photo strip… · Membuat jalur gambar…"):
@@ -1629,13 +1630,13 @@ def memory_flow(qz):
         st.markdown(f'<div class="step-h">{B("Step 1 · Framed photo: hold your prize!", "Langkah 1 · Gambar berbingkai: pegang hadiah anda!")}</div>', unsafe_allow_html=True)
         single_step("📷 Winner photo · Gambar pemenang")
         if done1:
-            st.markdown(f'<div class="step-h">{B("Step 2 · Photo booth: 4 fun poses", "Langkah 2 · Photo booth: 4 gaya")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="step-h">{B("Step 2 · Photo booth: 3 fun poses", "Langkah 2 · Photo booth: 3 gaya")}</div>', unsafe_allow_html=True)
             booth_step()
         have_main = done1 and done2
         if not have_main:
             st.caption("Both winner photos are needed before you finish. · Kedua-dua gambar pemenang diperlukan.")
     else:
-        mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo booth: 4 photos in a row · 4 gambar berturut-turut"],
+        mode = st.radio("Style · Gaya", ["🖼️ One photo with frame · Satu gambar berbingkai", "🎞️ Photo booth: 3 photos in a row · 3 gambar berturut-turut"],
                         key=f"mode_{p}", horizontal=True)
         if mode.startswith("🖼️"):
             single_step("📷 Take your photo · Ambil gambar")

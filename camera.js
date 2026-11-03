@@ -2,14 +2,14 @@
 // ONE PHOTO (every device): the DarahBot full-screen camera with a 3-2-1 countdown
 //  * laptop / desktop: always LANDSCAPE
 //  * phone / iPad: follows how the device is held
-// PHOTO BOOTH (4 photos)
+// PHOTO BOOTH (3 photos)
 //  * every device: full-screen camera, a warning first, then ONE press starts the timer and
-//    4 photos are taken in a row (3 seconds before each), without closing the camera.
+//    3 photos are taken in a row (3 seconds before each), without closing the camera.
 // Front camera / webcam is MIRRORED like a mirror, and the saved photo is mirrored the same way,
 // so the photo looks exactly like what you saw on screen (back camera: not mirrored).
 (function () {
-  if (window.__dbCam6) return;
-  window.__dbCam6 = true;
+  if (window.__dbCam7) return;
+  window.__dbCam7 = true;
   const SEL = '[class*="st-key-cam"]';
   const touch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1;
   const isBooth = function (box) { return /st-key-cambooth/.test(box.className); };
@@ -50,7 +50,16 @@
   #dbcam .msg{color:#fff;opacity:.9;text-align:center;max-width:620px;line-height:1.5}
   #dbcam .warn{background:#fff;color:#2B0F13;border-radius:18px;padding:16px 20px;max-width:560px;text-align:center;line-height:1.5;box-shadow:0 20px 50px -20px rgba(216,31,59,.7)}
   #dbcam .warn b{color:#B0122A;font-size:19px;display:block;margin-bottom:4px}
-  #dbcam .warn small{color:#8D7476;display:block;margin-top:6px}`;
+  #dbcam .warn small{color:#8D7476;display:block;margin-top:6px}
+  #dbcam .guide{position:absolute;inset:0;pointer-events:none;opacity:.55;transition:opacity .3s}
+  #dbcam .guide .g{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:0 2%;overflow:hidden;white-space:nowrap;font-family:Inter,system-ui,sans-serif}
+  #dbcam .guide .g-glass{background:rgba(255,255,255,.55);border:2px dashed rgba(255,255,255,.95);color:#2B0F13}
+  #dbcam .guide .g-glass b{font-weight:800;line-height:1} #dbcam .guide .g-glass small{color:#B0122A;font-weight:600;margin-top:4px}
+  #dbcam .guide .g-red{background:rgba(176,18,42,.75);border:2px dashed #fff;color:#fff;font-weight:600;align-items:center}
+  #dbcam .guide .g-name{align-items:flex-end;justify-content:flex-end;color:#FFE282;text-shadow:0 3px 12px rgba(0,0,0,.6)} #dbcam .guide .g-name b{font-weight:800;line-height:1}
+  #dbcam .guide .g-band{position:absolute;inset:0;border-style:solid;border-color:rgba(176,18,42,.85)}
+  #dbcam .guide .g-safe{position:absolute;inset:4%;border:2px dashed rgba(255,255,255,.8);border-radius:14px}
+  #dbcam .guide .g-tip{position:absolute;left:50%;bottom:3%;transform:translateX(-50%);background:rgba(20,3,6,.7);color:#fff;font:600 13px Inter,sans-serif;padding:6px 12px;border-radius:999px;white-space:nowrap}`;
   document.head.appendChild(css);
 
   let stream = null, facing = 'user', devices = [], devIdx = 0;
@@ -133,13 +142,39 @@
     close();
     const o = document.createElement('div');
     o.id = 'dbcam';
-    o.innerHTML = '<div class="title">' + (booth ? '🎞️ DarahBot photo booth · 4 photos' : '📸 DarahBot photo') + '</div>' +
-      '<div class="stage land"><video playsinline muted></video><div class="badge"></div><div class="count"></div><div class="flash"></div></div>' +
+    o.innerHTML = '<div class="title">' + (booth ? '🎞️ DarahBot photo booth · 3 photos' : '📸 DarahBot photo') + '</div>' +
+      '<div class="stage land"><video playsinline muted></video><div class="guide"></div><div class="badge"></div><div class="count"></div><div class="flash"></div></div>' +
       '<div class="thumbs"></div><div class="msg">Opening the camera… · Membuka kamera…</div><div class="bar"></div>';
     document.body.appendChild(o);
     const video = o.querySelector('video'), stage = o.querySelector('.stage'), msg = o.querySelector('.msg');
     const count = o.querySelector('.count'), flash = o.querySelector('.flash'), bar = o.querySelector('.bar');
     const badge = o.querySelector('.badge'), thumbs = o.querySelector('.thumbs');
+    const guide = o.querySelector('.guide');
+    // live see-through preview of the frame, so people can place their face before the photo is taken
+    const paintGuide = function () {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      if (!w || !h) return;
+      if (booth) {                   // photo booth: the whole picture goes on the strip, only a safe-area line
+        guide.innerHTML = '<div class="g-safe"></div><div class="g-tip">Whole photo is used on the strip · Seluruh gambar digunakan</div>';
+        return;
+      }
+      const s = Math.min(w, h) / 1400, band = 18 * s, pad = band + 60 * s, px = function (v) { return v.toFixed(1) + 'px'; };
+      const name = (document.body.dataset.dbname || 'Your name').trim();
+      const box = function (cls, l, t, ww, hh, inner, extra) {
+        return '<div class="g ' + cls + '" style="left:' + px(l) + ';top:' + px(t) + ';width:' + px(ww) + ';height:' + px(hh) + ';' + (extra || '') + '">' + inner + '</div>';
+      };
+      let html = '<div class="g-band" style="border-width:' + px(Math.max(3, band)) + ';border-radius:' + px(48 * s) + '"></div>';
+      html += box('g-glass', pad - 10 * s, pad - 10 * s, 650 * s, 180 * s,
+        '<b style="font-size:' + px(58 * s) + '">DarahBot</b><small style="font-size:' + px(22 * s) + '">@amirrulmukminin · @ayuni</small>', 'border-radius:' + px(44 * s));
+      html += box('g-red', w - pad - 470 * s, pad + 10 * s, 470 * s, 84 * s, '<span style="font-size:' + px(36 * s) + '">Hi DarahBot, did I win?</span>', 'border-radius:' + px(42 * s));
+      html += box('g-glass', pad + 80 * s, h - pad - 330 * s, Math.min(900 * s, w * 0.62), 160 * s,
+        '<span style="font-size:' + px(30 * s) + '">DarahBot answer · jawapan</span>', 'border-radius:' + px(40 * s));
+      html += box('g-name', w - pad - w * 0.46, h - pad - 150 * s, w * 0.46, 170 * s,
+        '<b style="font-size:' + px(Math.min(150 * s, w * 0.46 / Math.max(4, name.length) * 1.65)) + '">' + name.replace(/[<>&]/g, '') + '</b>');
+      html += '<div class="g-tip">Keep your face in the clear middle · Letakkan muka di tengah</div>';
+      guide.innerHTML = html;
+    };
+    new ResizeObserver(paintGuide).observe(stage);
 
     function controls(mainLabel, onMain) {
       bar.innerHTML = '<button class="cancel">✕ Cancel · Batal</button>' +
@@ -158,11 +193,13 @@
       stop();
       if (booth) {
         stage.style.display = 'none'; thumbs.innerHTML = '';
+        guide.innerHTML = '';
         const g = document.createElement('div'); g.className = 'grid';
         canvases.forEach(function (c) { const im = document.createElement('img'); im.src = c.toDataURL('image/jpeg', .8); g.appendChild(im); });
         msg.before(g);
       } else {
         video.replaceWith(Object.assign(document.createElement('img'), { src: canvases[0].toDataURL('image/jpeg', .9) }));
+        guide.innerHTML = '';
       }
       msg.textContent = 'Happy with ' + (booth ? 'them' : 'it') + '? · Puas hati?';
       bar.innerHTML = '<button class="retake">↺ Retake · Ambil semula</button><button class="main use">✓ Use ' + (booth ? 'these photos' : 'this photo') + ' · Guna</button>';
@@ -185,16 +222,16 @@
         return;
       }
       // photo booth: warn first, then one press = 4 photos in a row
-      msg.innerHTML = '<div class="warn"><b>Heads up! 4 photos in a row</b>After you press Start, a 3-second timer runs before EACH photo. ' +
-        'The camera keeps going until all 4 are taken, so change your pose each time!' +
-        '<small>Perhatian! Mod ini mengambil 4 gambar berturut-turut. Pemasa 3 saat sebelum setiap gambar. Tukar gaya setiap kali!</small></div>';
+      msg.innerHTML = '<div class="warn"><b>Heads up! 3 photos in a row</b>After you press Start, a 3-second timer runs before EACH photo. ' +
+        'The camera keeps going until all 3 are taken, so change your pose each time!' +
+        '<small>Perhatian! Mod ini mengambil 3 gambar berturut-turut. Pemasa 3 saat sebelum setiap gambar. Tukar gaya setiap kali!</small></div>';
       controls('▶ Start · Mula', async function () {
         bar.style.visibility = 'hidden';
         msg.textContent = 'Get ready! · Bersedia!';
         badge.style.display = 'block';
         const shots = [];
-        for (let i = 1; i <= 4; i++) {
-          badge.textContent = 'Photo ' + i + ' / 4';
+        for (let i = 1; i <= 3; i++) {
+          badge.textContent = 'Photo ' + i + ' / 3';
           msg.textContent = i === 1 ? 'Get ready! · Bersedia!' : 'Next pose! · Gaya seterusnya!';
           await countdown(count, flash, 3);
           const c = grab(video);
