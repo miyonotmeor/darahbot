@@ -844,6 +844,62 @@ def quiz_answer(question, lang="en"):
                          "source": "DarahBot quiz rules"}}
 
 
+# ---------------------------------------------------------------------------
+# TYPO + SHORT-FORM FIXER: "saya bleh dermah darah ke?" -> "saya boleh derma darah ke?"
+# ---------------------------------------------------------------------------
+SHORT_FORMS = {
+    "bleh": "boleh", "blh": "boleh", "bole": "boleh", "leh": "boleh", "x": "tak", "tk": "tak", "tak": "tak", "nk": "nak", "nak": "nak",
+    "sy": "saya", "sye": "saya", "aq": "aku", "ak": "aku", "brp": "berapa", "bape": "berapa", "berape": "berapa", "dgn": "dengan",
+    "utk": "untuk", "ngn": "dengan", "mcm": "macam", "camne": "macam mana", "cmne": "macam mana", "mne": "mana", "kt": "di", "kat": "di",
+    "dlm": "dalam", "org": "orang", "sbb": "sebab", "dah": "sudah", "tgk": "tengok", "hosp": "hospital", "hospt": "hospital",
+    "u": "you", "r": "are", "ur": "your", "pls": "please", "plz": "please", "thx": "thanks", "tq": "thanks", "ppl": "people",
+    "umor": "umur", "umo": "umur", "blod": "blood", "bld": "blood", "drh": "darah", "drah": "darah", "drma": "derma", "dema": "derma",
+    "kl": "kl", "n9": "negeri sembilan", "jb": "johor", "pg": "penang", "yr": "year", "yrs": "years", "thn": "tahun",
+}
+VOCAB = sorted(set("""
+boleh derma darah menderma penderma saya berapa layak kelayakan syarat umur berat tidur puasa berpuasa hospital negeri paling banyak
+sedikit tinggi rendah tahun bulan hari jenis bandingkan purata mana siapa kenapa bila sakit selamat ramai jumlah pelajar baru muda
+tetap bergerak peratus tempat kuiz hadiah soalan jawapan tatu tindik kebaikan berubah naik turun sejak antara terima kasih tinjauan
+donate donating donated donation donations donor donors blood eligible eligibility which state states most least highest lowest
+compare average trend quiz prize tattoo piercing weight sleep fasting safe hurt pain where many much what when students student
+mobile regular percentage percent share hospitals bank banks type types group rarest common month months week day days year years
+first time youth young people requirements criteria minimum maximum change increase decrease since between thank thanks survey
+""".split()))
+
+
+# real words that must never be "corrected" (common English + Malay words, and parts of state names)
+KEEP = set("""
+were there their they them then than this that these those with from have has had been being about would could should will what
+were where which while whom whose when here more most less least many much some same such only over under after before also into
+other others again every each like just even very well than does done doing make made says said give gave take took know known
+year years ever never your yours ours mine time times number total ones once twice half kind main many much week
+berapakah adakah apakah bagaimana mengapa manakah siapakah bilakah kepada daripada dalam untuk dengan pada atau juga sahaja hanya
+lebih kurang sangat semua setiap antara selepas sebelum semasa ialah adalah iaitu lagi masih sudah belum akan boleh dapat mahu
+kuala lumpur pulau pinang negeri sembilan johor kedah kelantan melaka pahang perak perlis sabah sarawak selangor terengganu labuan
+putrajaya malaysia penang kelantan raya aidilfitri deepavali chinese new festival ramadan covid gen
+""".split())
+
+
+def normalise(question):
+    """Fix short forms and small spelling mistakes, word by word. State names are left alone (they have their own fixer)."""
+    out, fixes = [], []
+    for tok in re.findall(r"\w+|[^\w\s]+|\s+", question):
+        low = tok.lower()
+        if not re.fullmatch(r"[a-z]+", low):
+            out.append(tok)
+            continue
+        new = SHORT_FORMS.get(low)
+        if new is None and len(low) >= 5 and low not in VOCAB and low not in KEEP:
+            m = difflib.get_close_matches(low, VOCAB, n=1, cutoff=0.84)
+            new = m[0] if m else None
+        if new and new != low:
+            fixes.append((tok, new))
+            out.append(new)
+        else:
+            out.append(tok)
+    return "".join(out), fixes
+
+
 def answer(question, data, context=None, lang="en", survey=None):
     """
     Returns a dictionary:
@@ -863,6 +919,7 @@ def answer(question, data, context=None, lang="en", survey=None):
         return ms if bm else en
 
     q = (question or "").strip()
+    q, _typo = normalise(q)
     out = {"text": "", "kind": "ok", "evidence": None, "chart": None, "rows": None, "notes": [], "context": None}
 
     if not q:
