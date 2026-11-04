@@ -443,6 +443,113 @@ def is_followup(question, intent, understood_something):
     return bool(FOLLOWUP.search(question)) or (intent == "lookup" and len(question.split()) <= 3)
 
 
+# ---------------------------------------------------------------------------
+# DONOR RULES (basic questions: age, weight, sleep, tattoo, fasting, how often, lives)
+# The same rules as our survey and quiz (Pusat Darah Negara guidelines). Not from the KKM dataset.
+# ---------------------------------------------------------------------------
+_DONATE_WORDS = r"(derma|donat|donor|penderma|darah|blood)"
+
+
+def _num_near(t, units):
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:" + units + r")\b", t)
+    return float(m.group(1)) if m else None
+
+
+def rule_answer(question, lang="en"):
+    """Answer a basic donor-rule question, or return None if it is not one."""
+    t = question.lower()
+    bm = lang == "bm"
+    T = (lambda en, ms: ms if bm else en)
+    about_donating = re.search(_DONATE_WORDS, t)
+    lines, rules = [], []
+
+    # age: "umur 17 boleh derma?", "can a 16 year old donate", "minimum age", "how old"
+    age = None
+    m = re.search(r"(?:umur|age|aged|berumur)\s*(\d{1,3})\b|(\d{1,3})\s*(?:years?|yrs?)[\s-]*old\b|(\d{1,3})\s*y/?o\b"
+                  r"|(?:saya|aku|i am|i'm|im|anak saya|my (?:son|daughter|child|kid) is)\s+(\d{1,2})\b", t)
+    if m:
+        age = int(m.group(1) or m.group(2) or m.group(3) or m.group(4))
+    age_group_q = re.search(r"\b(group|groups|kumpulan|gen ?z|generation|bracket|17\s*[-–]\s*24)\b", t)
+    if not age_group_q and (age is not None or re.search(r"\b(umur|how old|berapa umur|old enough|minimum age|maximum age|age limit|had umur)\b", t)):
+        rules.append("age")
+        if age is None:
+            lines.append(T("**Age:** 18 to 60 years old. At **17** you can donate with your parent's or guardian's written consent. "
+                           "Regular donors who are healthy can continue up to 65.",
+                           "**Umur:** 18 hingga 60 tahun. Pada umur **17** anda boleh menderma dengan kebenaran bertulis ibu bapa atau penjaga. "
+                           "Penderma tetap yang sihat boleh terus menderma sehingga 65 tahun."))
+        elif age < 17:
+            lines.append(T(f"**At {age}: not yet.** The minimum age is 17 (with parent's consent) and 18 on your own. "
+                           "Thank you for wanting to help: you can still bring your family and friends!",
+                           f"**Umur {age}: belum lagi.** Umur minimum ialah 17 tahun (dengan kebenaran ibu bapa) dan 18 tahun tanpa kebenaran. "
+                           "Terima kasih kerana mahu membantu: anda masih boleh ajak keluarga dan rakan!"))
+        elif age == 17:
+            lines.append(T("**At 17: yes, with your parent's or guardian's written consent.** From 18 you can donate on your own "
+                           "(you also need to weigh at least 45 kg and be healthy).",
+                           "**Umur 17: boleh, dengan kebenaran bertulis ibu bapa atau penjaga.** Mulai 18 tahun anda boleh menderma sendiri "
+                           "(berat sekurang-kurangnya 45 kg dan sihat)."))
+        elif age <= 60:
+            lines.append(T(f"**At {age}: yes, your age is fine** (18 to 60). You also need to weigh at least 45 kg and be healthy on the day.",
+                           f"**Umur {age}: boleh, umur anda sesuai** (18 hingga 60). Anda juga perlu berat sekurang-kurangnya 45 kg dan sihat pada hari itu."))
+        elif age <= 65:
+            lines.append(T(f"**At {age}: only if you are already a regular donor** and healthy. First-time donors must be 60 or younger.",
+                           f"**Umur {age}: hanya jika anda penderma tetap** dan sihat. Penderma kali pertama mesti 60 tahun ke bawah."))
+        else:
+            lines.append(T(f"**At {age}: usually not.** The upper limit is 60 for first-time donors and 65 for regular donors.",
+                           f"**Umur {age}: biasanya tidak.** Had umur ialah 60 tahun untuk penderma kali pertama dan 65 tahun untuk penderma tetap."))
+
+    w = _num_near(t, r"kg|kilo|kilogram")
+    if w is not None or re.search(r"\b(berat|weight|weigh|kurus|thin)\b", t):
+        rules.append("weight")
+        if w is None:
+            lines.append(T("**Weight:** at least **45 kg**.", "**Berat:** sekurang-kurangnya **45 kg**."))
+        else:
+            ok = w >= 45
+            lines.append(T(f"**{w:g} kg: {'yes, that is fine' if ok else 'not yet'}.** You need at least 45 kg.",
+                           f"**{w:g} kg: {'boleh, sesuai' if ok else 'belum lagi'}.** Berat minimum ialah 45 kg."))
+
+    h = _num_near(t, r"jam|hours?|hrs?|h")
+    if re.search(r"\b(tidur|sleep|slept|rest|rehat)\b", t):
+        rules.append("sleep")
+        if h is None:
+            lines.append(T("**Sleep:** at least **5 hours** the night before.", "**Tidur:** sekurang-kurangnya **5 jam** pada malam sebelumnya."))
+        else:
+            ok = h >= 5
+            lines.append(T(f"**{h:g} hours of sleep: {'fine' if ok else 'not enough'}.** You need at least 5 hours the night before.",
+                           f"**Tidur {h:g} jam: {'cukup' if ok else 'tidak cukup'}.** Perlu sekurang-kurangnya 5 jam pada malam sebelumnya."))
+
+    if re.search(r"\b(tattoo|tatu|piercing|pierce|tindik|acupuncture|akupunktur)", t):
+        rules.append("tattoo")
+        lines.append(T("**Tattoo, piercing or acupuncture:** wait **12 months** before donating.",
+                       "**Tatu, tindik atau akupunktur:** tunggu **12 bulan** sebelum menderma."))
+
+    if re.search(r"\b(puasa|fasting|fast|ramadan|ramadhan|lapar|empty stomach|makan|eat)\b", t) and about_donating:
+        rules.append("fasting")
+        lines.append(T("**Fasting / empty stomach:** don't donate on an empty stomach. Eat a proper meal and drink plenty of water first "
+                       "(during Ramadan, donate after breaking your fast).",
+                       "**Puasa / perut kosong:** jangan menderma dengan perut kosong. Makan dengan baik dan minum banyak air dahulu "
+                       "(pada bulan Ramadan, derma selepas berbuka)."))
+
+    if re.search(r"\b(how often|berapa kerap|how many times can|selang|interval|every how)\b", t) and about_donating:
+        rules.append("interval")
+        lines.append(T("**How often:** wait about **3 months** between whole blood donations.",
+                       "**Berapa kerap:** tunggu kira-kira **3 bulan** antara derma darah penuh."))
+
+    if re.search(r"\b(lives|nyawa|save lives?|selamatkan)\b", t) and about_donating:
+        rules.append("lives")
+        lines.append(T("**One donation can help save up to 3 lives**, because it is split into red cells, plasma and platelets.",
+                       "**Satu derma boleh membantu menyelamatkan sehingga 3 nyawa**, kerana darah dipecahkan kepada sel darah merah, plasma dan platelet."))
+
+    if not lines or not (about_donating or rules):
+        return None
+    if rules == ["sleep"] and not about_donating:
+        return None
+    text = "\n".join(f"- {x}" for x in lines) if len(lines) > 1 else lines[0]
+    text += T("\n\nFor the full check, open **✅ Can I donate?**. The blood bank staff make the final decision on the day.",
+              "\n\nUntuk semakan penuh, buka **✅ Can I donate?**. Kakitangan bank darah membuat keputusan akhir pada hari itu.")
+    return {"text": text, "kind": "ok", "chart": None, "rows": None, "notes": [], "context": None,
+            "evidence": {"value": ", ".join(rules), "field": "donor rules", "filters": "none", "unit": "rule", "source": SOURCE_RULES}}
+
+
 def answer(question, data, context=None, lang="en", survey=None):
     """
     Returns a dictionary:
@@ -469,6 +576,9 @@ def answer(question, data, context=None, lang="en", survey=None):
                                           "Taip soalan tentang derma darah, contohnya: *Negeri mana paling banyak derma darah pada 2025?*"))
         return out
 
+    r = rule_answer(q, lang)               # basic donor rules first (age, weight, sleep, tattoo...)
+    if r:
+        return r
     intent = detect_intent(q)
     states, corrections = find_states(q, data["states"])
     years = find_years(q)
