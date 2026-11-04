@@ -12,7 +12,7 @@ import html
 import io
 import os
 import tempfile
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext as contextlib_null
 import random
 import re
 import socket
@@ -175,6 +175,9 @@ h1, h2, h3, h4 { font-family: var(--display) !important; letter-spacing: -.015em
 @keyframes pop { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform:none; } }
 [data-testid="stChatMessage"]:has(.umsg) { background: var(--pink); border-color:#F6CFD4; margin-left: 12%; }
 .umsg { font-weight: 600; font-size: 15.5px; color: var(--ink); }
+[data-testid="stLayoutWrapper"]:has(> .st-key-chatbar), [data-testid="stElementContainer"]:has(> .st-key-chatbar), .st-key-chatbar {
+  position: sticky !important; bottom: 0; z-index: 60; }
+.st-key-chatbar { background: linear-gradient(180deg, rgba(251,246,244,0), var(--paper, #FBF6F4) 22%); padding: 18px 0 14px; margin-top: 6px; }
 [data-testid="stChatInput"] { border-radius: 16px !important; border: 2px solid var(--line2) !important; background:#fff !important; }
 [data-testid="stChatInput"]:focus-within { border-color: var(--blood) !important; box-shadow: 0 0 0 4px rgba(176,18,42,.12); }
 [data-testid="stChatInputSubmitButton"] { background: var(--blood) !important; border-radius: 12px !important; }
@@ -928,6 +931,15 @@ if show("chat"):
                 e = r["evidence"]
                 proof.markdown(f'<div class="evidence">🔎 <b>{T("Evidence", "Bukti")}</b> · value: <b>{e["value"]}</b> · field: <code>{e["field"]}</code>'
                         f' · filter: {e["filters"]} · unit: {e["unit"]}<br>source: {e["source"]}</div>', unsafe_allow_html=True)
+            # a shortcut button when the answer points to another section (e.g. "open Can I donate?")
+            goto = list(r.get("goto") or [])
+            if "Can I donate?" in r.get("text", "") or "Bolehkah saya" in r.get("text", ""):
+                goto.append("elig")
+            for k in dict.fromkeys(goto):
+                if k in LABEL or k == "quiz":
+                    go_button(k, {"elig": T("✅ Open Can I donate? →", "✅ Buka Bolehkah saya menderma? →"),
+                                  "quiz": T("🏆 Open the quiz →", "🏆 Buka kuiz →")}.get(k, LABEL.get(k, k)),
+                              key=f"goto_{k}_{idx}", primary=True)
             if r["chart"] is not None:
                 st.plotly_chart(r["chart"], width="stretch", key=f"chart_{idx}", config={"displayModeBar": False}, theme=None)
             if r["rows"] is not None:
@@ -1027,6 +1039,9 @@ if show("chat"):
             setTimeout(jump, 120); setTimeout(jump, 600);
             </script>""", height=1)
 
+        # the typing box (and mic) stay pinned at the bottom of the screen, like other chat apps
+        _bar = st.container(key="chatbar") if not PHONE else contextlib_null()
+        _bar.__enter__()
         # 🎤 Voice question: Chrome turns speech into text, then it is typed into the chat box for you
         if not (PHONE and not st.session_state.messages):
           st.iframe(f"""
@@ -1062,6 +1077,7 @@ if show("chat"):
         typed = st.chat_input(T("Ask DarahBot…", "Tanya DarahBot…") if PHONE else
                               T("Ask about blood donations by state, year, age group or blood type…",
                                 "Tanya tentang derma darah mengikut negeri, tahun, umur atau jenis darah…"))
+        _bar.__exit__(None, None, None)
         question = typed or st.session_state.pop("pending", None)
         if question:
             st.session_state.messages.append({"role": "user", "content": question})

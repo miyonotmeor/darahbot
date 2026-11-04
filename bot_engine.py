@@ -469,6 +469,8 @@ def rule_answer(question, lang="en"):
                   r"|(?:saya|aku|i am|i'm|im|anak saya|my (?:son|daughter|child|kid) is)\s+(\d{1,2})\b", t)
     if m:
         age = int(m.group(1) or m.group(2) or m.group(3) or m.group(4))
+        if m.group(4) and re.search(r"(berat|weight|weigh|tidur|sleep)\s*(badan\s*)?(saya|aku|i am|i'm)\s*\d", t):
+            age = None                 # "berat saya 50" is a weight, not an age
     age_group_q = re.search(r"\b(group|groups|kumpulan|gen ?z|generation|bracket|17\s*[-–]\s*24)\b", t)
     if not age_group_q and (age is not None or re.search(r"\b(umur|how old|berapa umur|old enough|minimum age|maximum age|age limit|had umur)\b", t)):
         rules.append("age")
@@ -498,6 +500,9 @@ def rule_answer(question, lang="en"):
                            f"**Umur {age}: biasanya tidak.** Had umur ialah 60 tahun untuk penderma kali pertama dan 65 tahun untuk penderma tetap."))
 
     w = _num_near(t, r"kg|kilo|kilogram")
+    if w is None:                      # "berat 40", "weight is 40", "berat saya 40"
+        mw = re.search(r"\b(?:berat|weight|weigh|weighs)\s*(?:badan\s*)?(?:saya\s*|is\s*|:\s*|only\s*|hanya\s*)?(\d{2,3}(?:\.\d+)?)\b", t)
+        w = float(mw.group(1)) if mw else None
     if w is not None or re.search(r"\b(berat|weight|weigh|kurus|thin)\b", t):
         rules.append("weight")
         if w is None:
@@ -547,7 +552,7 @@ def rule_answer(question, lang="en"):
     text += T("\n\nFor the full check, open **✅ Can I donate?**. The blood bank staff make the final decision on the day.",
               "\n\nUntuk semakan penuh, buka **✅ Can I donate?**. Kakitangan bank darah membuat keputusan akhir pada hari itu.")
     return {"text": text, "kind": "ok", "chart": None, "rows": None, "notes": [], "context": None,
-            "evidence": {"value": ", ".join(rules), "field": "donor rules", "filters": "none", "unit": "rule", "source": SOURCE_RULES}}
+            "goto": ["elig"], "evidence": {"value": ", ".join(rules), "field": "donor rules", "filters": "none", "unit": "rule", "source": SOURCE_RULES}}
 
 
 def answer(question, data, context=None, lang="en", survey=None):
