@@ -122,7 +122,7 @@ METRIC_KEYWORDS = [
     ("genz_share", [r"\b(percent|percentage|share|peratus|%|proportion|bahagian)\b.*\b(gen ?z|young|muda|youth|belia|17-24)\b",
                     r"\b(gen ?z|young|muda|youth|belia|17-24)\b.*\b(percent|percentage|share|peratus|%|proportion)\b"]),
     ("genz",       [r"\bgen ?z\b", r"\byoung\b", r"\byouth\b", r"\bmuda\b", r"\bbelia\b", r"17-24", r"\bremaja\b"]),
-    ("per_capita", [r"per ?capita", r"per (1,?000|thousand|person|people|orang)", r"\brate\b", r"\bkadar\b", r"\bfair\b"]),
+    ("per_capita", [r"per ?capita", r"per (1,?000|thousand|person|people|orang)", r"(bagi )?setiap (1,?000|seribu)", r"per seribu", r"\brate\b", r"\bkadar\b", r"\bfair\b"]),
     ("new_donors", [r"new donor", r"first[- ]time", r"penderma baru", r"\bbaru\b", r"\bnew\b"]),
     ("blood_ab",   [r"\b(type|jenis|group|kumpulan)\s*ab\b", r"\bab\s*(blood|darah|\+|-)", r"\bab\b"]),
     ("blood_a",    [r"\b(type|jenis|group|kumpulan)\s*a\b", r"\ba\+", r"\bblood a\b", r"\bdarah a\b"]),
@@ -216,17 +216,21 @@ def detect_intent(text):
         return "cause"
     if re.search(r"\b(survey|tinjauan|respondents?|responden|questionnaire|soal selidik|borang)\b", t):
         return "survey"
-    if re.search(r"\b(eligible|eligibility|layak|kelayakan|can i donate|am i allowed|boleh saya derma|bolehkah saya|boleh ke saya)\b", t):
+    if re.search(r"\b(eligible|eligibility|layak|kelayakan|can i donate|can i give blood|am i allowed|boleh saya derma|bolehkah saya|boleh ke saya|"
+                 r"saya boleh (derma|menderma)|boleh tak saya|boleh ke derma|who can (donate|give)|siapa (yang )?boleh (derma|menderma)|"
+                 r"syarat|requirements?|criteria|kriteria|qualif\w*)\b", t):
         return "eligible"
     if re.search(r"\b(predict|forecast|will be|next year|future|ramal|akan datang|tahun depan)\b", t):
         return "predict"
-    if re.search(r"\b(blood types|jenis darah|types of blood|breakdown|composition|pecahan)\b", t):
+    if re.search(r"\b(blood types?|jenis darah|types of blood|blood groups?|kumpulan darah|breakdown|composition|pecahan)\b", t) \
+            or re.search(r"\b(type|jenis)\s*(a|b|o|ab)\b", t):
         return "breakdown"
     if re.search(r"\b(compare|comparison|vs\.?|versus|banding|bandingkan|beza|difference)\b", t):
         return "compare"
-    if re.search(r"\b(trend|over the years|over time|changed?|berubah|sejak|since|growth|increase|decrease|naik|turun)\b", t):
+    if re.search(r"\b(trend|over the years|over time|changed?|berubah|sejak|since|growth|increase|increased|decrease|decreased|naik|turun|go(es)? up|went up|go(es)? down|went down|rise|rose|fall|fell|drop(ped)?|meningkat|menurun)\b", t) \
+            or (len(set(re.findall(r"\b(?:19|20)\d{2}\b", t))) >= 2 and re.search(r"\b(from|dari|daripada|to|hingga|ke)\b", t)):
         return "trend"
-    if re.search(r"\b(highest|most|top|lowest|least|fewest|rank|ranking|paling|tertinggi|terendah|terbanyak|tersedikit|best|worst)\b", t):
+    if re.search(r"\b(highest|most|top|lowest|least|fewest|rank|ranking|paling|tertinggi|terendah|terbanyak|tersedikit|best|worst|second|2nd|third|3rd|kedua|ketiga|tempat|came)\b", t):
         return "rank"
     if re.search(r"\b(average|mean|purata|summary|ringkasan|overall|total)\b", t):
         return "summary"
@@ -527,14 +531,14 @@ def rule_answer(question, lang="en"):
         lines.append(T("**Tattoo, piercing or acupuncture:** wait **12 months** before donating.",
                        "**Tatu, tindik atau akupunktur:** tunggu **12 bulan** sebelum menderma."))
 
-    if re.search(r"\b(puasa|fasting|fast|ramadan|ramadhan|lapar|empty stomach|makan|eat)\b", t) and about_donating:
+    if re.search(r"(puasa|\bfasting\b|\bfast\b|ramadan|ramadhan|\blapar\b|empty stomach|\bmakan\b|\beat\b)", t) and about_donating:
         rules.append("fasting")
-        lines.append(T("**Fasting / empty stomach:** don't donate on an empty stomach. Eat a proper meal and drink plenty of water first "
+        lines.append(T("**No, not on an empty stomach.** **Fasting / empty stomach:** don't donate on an empty stomach. Eat a proper meal and drink plenty of water first "
                        "(during Ramadan, donate after breaking your fast).",
-                       "**Puasa / perut kosong:** jangan menderma dengan perut kosong. Makan dengan baik dan minum banyak air dahulu "
+                       "**Tidak, jangan dengan perut kosong.** **Puasa / perut kosong:** jangan menderma dengan perut kosong. Makan dengan baik dan minum banyak air dahulu "
                        "(pada bulan Ramadan, derma selepas berbuka)."))
 
-    if re.search(r"\b(how often|berapa kerap|how many times can|selang|interval|every how)\b", t) and about_donating:
+    if re.search(r"\b(how often|berapa kerap|how many times can|selang|interval)\b", t) and about_donating:
         rules.append("interval")
         lines.append(T("**How often:** wait about **3 months** between whole blood donations.",
                        "**Berapa kerap:** tunggu kira-kira **3 bulan** antara derma darah penuh."))
@@ -553,6 +557,255 @@ def rule_answer(question, lang="en"):
               "\n\nUntuk semakan penuh, buka **✅ Can I donate?**. Kakitangan bank darah membuat keputusan akhir pada hari itu.")
     return {"text": text, "kind": "ok", "chart": None, "rows": None, "notes": [], "context": None,
             "goto": ["elig"], "evidence": {"value": ", ".join(rules), "field": "donor rules", "filters": "none", "unit": "rule", "source": SOURCE_RULES}}
+
+
+# ---------------------------------------------------------------------------
+# EVERYDAY QUESTIONS (general facts + a few extra data questions)
+# ---------------------------------------------------------------------------
+SOURCE_GENERAL = ("General blood donation guidance (Pusat Darah Negara / WHO). Not part of the KKM dataset; "
+                  "the blood bank staff give the final advice.")
+MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+MONTHS_MS = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"]
+DAYS_MS = {"Monday": "Isnin", "Tuesday": "Selasa", "Wednesday": "Rabu", "Thursday": "Khamis", "Friday": "Jumaat", "Saturday": "Sabtu", "Sunday": "Ahad"}
+
+
+def _reply(text, source=SOURCE_GENERAL, value="", field="general guidance", goto=None, chart=None, rows=None):
+    return {"text": text, "kind": "ok", "chart": chart, "rows": rows, "notes": [], "context": None, "goto": goto or [],
+            "evidence": {"value": value or "-", "field": field, "filters": "none", "unit": "-", "source": source}}
+
+
+def faq_answer(question, data, lang="en"):
+    """Answers the common questions visitors ask that are not a number lookup. Returns None if not one."""
+    t = question.lower()
+    bm = lang == "bm"
+    T = (lambda en, ms: ms if bm else en)
+    donate = re.search(_DONATE_WORDS, t)
+    full = data["latest_full_year"]
+
+    # small talk and about the project
+    if re.fullmatch(r"\s*(thanks?|thank you|thx|tq|terima ?kasih|tenkiu|ok(ay)?|nice|cool|best|great|mantap|bagus)[\s!.]*", t):
+        return _reply(T("You're welcome! Ask me anything else about blood donation, or try the **🏆 Quiz** to win a prize.",
+                        "Sama-sama! Tanya apa-apa lagi tentang derma darah, atau cuba **🏆 Kuiz** untuk menang hadiah."), goto=["quiz"])
+    if re.search(r"\b(what is darahbot|apa itu darahbot|who (made|built|created) (you|this|darahbot)|siapa (buat|cipta|bina)|about (you|darahbot)|what are you|siapa kamu|siapa awak)\b", t):
+        return _reply(T("I'm **DarahBot**, a blood donation chatbot made by **Muhammad Amirrul Mukminin** and **Nur Ayuni Athirah** for the "
+                        "CSC649 Data Science Exhibition. I answer from official KKM blood donation data and always show my evidence.",
+                        "Saya **DarahBot**, chatbot derma darah yang dibina oleh **Muhammad Amirrul Mukminin** dan **Nur Ayuni Athirah** untuk "
+                        "Pameran Sains Data CSC649. Saya menjawab daripada data rasmi KKM dan sentiasa menunjukkan bukti."),
+                      source=SOURCE_DONATIONS, field="about DarahBot", goto=["about"])
+    if re.search(r"\b(where.*data|data.*(from|source)|sumber data|data (dari|daripada) mana|accurate|tepat|betul ke data|reliable|boleh percaya)\b", t):
+        return _reply(T(f"All my numbers come from the official **KKM / National Blood Centre (PDN)** open data on GitHub "
+                        f"(*data-darah-public*), updated daily, from {FIRST_YEAR} to {data['last_date']:%d %b %Y}. "
+                        "Every answer shows the exact field and filters I used, so you can check it yourself.",
+                        f"Semua nombor saya daripada data terbuka rasmi **KKM / Pusat Darah Negara (PDN)** di GitHub "
+                        f"(*data-darah-public*), dikemas kini setiap hari, dari {FIRST_YEAR} hingga {data['last_date']:%d %b %Y}. "
+                        "Setiap jawapan menunjukkan medan dan penapis tepat yang saya guna, jadi anda boleh semak sendiri."),
+                      source=SOURCE_DONATIONS, field="data source")
+
+    # what to expect when donating
+    if donate and re.search(r"\b(safe|selamat ke|bahaya|danger|risk|risiko|jangkit|infection)\b", t):
+        return _reply(T("**Yes, donating blood is safe.** Every donor gets a new, sterile, single-use needle, so you cannot catch an infection from donating. "
+                        "A nurse checks your blood pressure and haemoglobin first. Some people feel a little dizzy, so rest and drink water afterwards.",
+                        "**Ya, menderma darah adalah selamat.** Setiap penderma guna jarum baru yang steril dan sekali guna, jadi anda tidak boleh dijangkiti kerana menderma. "
+                        "Jururawat akan periksa tekanan darah dan hemoglobin dahulu. Ada yang rasa sedikit pening, jadi berehat dan minum air selepasnya."), goto=["elig"])
+    if donate and re.search(r"\b(hurt|pain|painful|sakit|takut|scared|afraid|ngeri)\b", t):
+        return _reply(T("**Only a quick pinch** when the needle goes in, like a normal blood test. After that most people feel nothing while the bag fills.",
+                        "**Hanya rasa cucuk sekejap** semasa jarum dimasukkan, sama seperti ujian darah biasa. Selepas itu kebanyakan orang tidak rasa apa-apa semasa beg diisi."))
+    if donate and re.search(r"\b(how long|berapa lama|lama ke|take long|duration|tempoh|minutes|minit)\b", t):
+        return _reply(T("**The blood draw takes about 8 to 10 minutes.** With registration, the health check and rest with a drink after, plan for about **30 to 45 minutes**.",
+                        "**Pengambilan darah mengambil kira-kira 8 hingga 10 minit.** Termasuk pendaftaran, pemeriksaan kesihatan dan rehat selepasnya, sediakan masa kira-kira **30 hingga 45 minit**."))
+    if re.search(r"\b(happens? to (my|the) blood|where does (my|the) blood go|blood (go|used)|darah (saya )?(pergi|digunakan|dibuat apa)|apa jadi)\b", t):
+        return _reply(T("Your **450 ml** is tested for safety, then split into **red cells, plasma and platelets**. "
+                        "That is why one donation can help **up to 3 patients**, such as accident victims, mothers giving birth, and cancer or thalassaemia patients.",
+                        "Darah **450 ml** anda diuji keselamatannya, kemudian dipecahkan kepada **sel darah merah, plasma dan platelet**. "
+                        "Sebab itu satu derma boleh membantu **sehingga 3 pesakit**, seperti mangsa kemalangan, ibu bersalin, dan pesakit kanser atau talasemia."))
+    if re.search(r"\b(benefits?|kebaikan|faedah|manfaat|why (should|donate)|kenapa (perlu|patut) derma|good for)\b", t) and (donate or "benefit" in t):
+        return _reply(T("- **You help save lives:** one donation can help up to 3 patients.\n- **A free mini health check:** blood pressure and haemoglobin are checked.\n"
+                        "- **Your body makes new blood:** plasma is replaced in about a day and red cells within a few weeks.\n- **A good feeling** of helping your community.",
+                        "- **Anda membantu menyelamatkan nyawa:** satu derma boleh membantu sehingga 3 pesakit.\n- **Pemeriksaan kesihatan mini percuma:** tekanan darah dan hemoglobin diperiksa.\n"
+                        "- **Badan anda menghasilkan darah baru:** plasma diganti dalam kira-kira sehari dan sel darah merah dalam beberapa minggu.\n- **Rasa gembira** kerana membantu masyarakat."),
+                      goto=["elig"])
+    if re.search(r"\b(universal (donor|recipient|receiver)|penderma universal|penerima universal|receive from (anyone|all)|give to (anyone|everyone|all)|boleh terima semua|boleh beri semua)\b", t):
+        return _reply(T("**O negative (O-)** is the *universal donor*: red cells from O- can be given to anyone in an emergency. "
+                        "**AB positive (AB+)** is the *universal recipient*: they can receive red cells from all types.",
+                        "**O negatif (O-)** ialah *penderma universal*: sel darah merah O- boleh diberikan kepada sesiapa dalam kecemasan. "
+                        "**AB positif (AB+)** ialah *penerima universal*: mereka boleh menerima sel darah merah daripada semua jenis."), goto=["type"])
+    if re.search(r"\b(what is my blood type|apa jenis darah saya|my blood (type|group)|jenis darah saya|how (do i|to) know my blood)\b", t):
+        return _reply(T("I can't know your blood type from the data, but **you get it for free when you donate**: the blood bank tests it and it is printed on your donor card. "
+                        "Already know it? Open **🩸 My blood type** to see how common it is in Malaysia.",
+                        "Saya tidak dapat tahu jenis darah anda daripada data, tetapi **anda dapat tahu secara percuma apabila menderma**: bank darah akan mengujinya dan ia dicetak pada kad penderma anda. "
+                        "Sudah tahu? Buka **🩸 My blood type** untuk lihat betapa biasa jenis darah anda di Malaysia."), goto=["type"])
+    if donate and re.search(r"\b(women|woman|female|girls?|perempuan|wanita|haid|period|menstruat|pregnan|mengandung|hamil|breastfeed|menyusu)\b", t):
+        return _reply(T("**Yes, women can donate.** During your period it is usually fine if you feel well and your haemoglobin is normal (the nurse checks it). "
+                        "If you are **pregnant or breastfeeding**, wait until after that time, and ask the blood bank staff.",
+                        "**Ya, wanita boleh menderma.** Semasa haid biasanya boleh jika anda sihat dan hemoglobin normal (jururawat akan periksa). "
+                        "Jika anda **mengandung atau menyusukan bayi**, tunggu sehingga selepas tempoh itu, dan tanya kakitangan bank darah."), goto=["elig"])
+    personal = re.search(r"\b(i|i'm|im|my|me|saya|aku|kalau|if|boleh|can|bolehkah|someone|seseorang|orang yang)\b", t)
+    if donate and personal and re.search(r"\b(diabet|kencing manis|darah tinggi|high blood pressure|hypertension|tekanan darah|sick|demam|fever|flu|selsema|batuk|cough|ubat|medicine|medication|antibiotic|asthma|asma|jantung|heart|anaemia|anemia|kurang darah|surgery|pembedahan|covid|operation|disease|penyakit)", t):
+        return _reply(T("**It depends, so please ask the doctor at the blood bank.** Some conditions are fine when they are well controlled (for example blood pressure or diabetes managed without insulin), "
+                        "while others need you to wait (fever, flu, antibiotics, recent surgery). DarahBot can't judge your health, but you can check the basic rules in **✅ Can I donate?**.",
+                        "**Bergantung, jadi sila tanya doktor di bank darah.** Sesetengah keadaan dibenarkan jika terkawal (contohnya tekanan darah atau kencing manis yang dikawal tanpa insulin), "
+                        "manakala yang lain perlu tunggu (demam, selsema, antibiotik, pembedahan baru-baru ini). DarahBot tidak boleh menilai kesihatan anda, tetapi anda boleh semak syarat asas di **✅ Can I donate?**."),
+                      goto=["elig"])
+
+    # facts about the dataset itself
+    if re.search(r"\b(how many states|berapa (banyak )?negeri|number of states|bilangan negeri)\b", t):
+        st_ = data["states"]
+        return _reply(T(f"The dataset reports **{len(st_)} states** separately: {', '.join(st_)}. "
+                        "Perlis, Labuan and Putrajaya are grouped with a nearby state by the National Blood Centre.",
+                        f"Set data ini melaporkan **{len(st_)} negeri** secara berasingan: {', '.join(st_)}. "
+                        "Perlis, Labuan dan Putrajaya digabungkan dengan negeri berdekatan oleh Pusat Darah Negara."),
+                      source=SOURCE_DONATIONS, value=f"{len(st_)} states", field="state (excluding Malaysia)")
+    if re.search(r"\b(start|starts|started|begin|begins|first year|bermula|mula|since when|sejak bila|tahun pertama)\b", t) and re.search(r"\b(data|dataset|set data|record|rekod)\b", t):
+        return _reply(T(f"The KKM data starts in **{FIRST_YEAR}** and runs to **{data['last_date']:%d %b %Y}** (updated daily).",
+                        f"Data KKM bermula pada tahun **{FIRST_YEAR}** hingga **{data['last_date']:%d %b %Y}** (dikemas kini setiap hari)."),
+                      source=SOURCE_DONATIONS, value=str(FIRST_YEAR), field="min(date)")
+    if re.search(r"\b(how many|berapa (banyak|buah)?|number of|bilangan)\b", t) and re.search(r"\b(blood banks?|bank darah|hospitals?|facilit)", t) \
+            and not re.search(r"\b(donations?|derma|kumpul|collect)", t):
+        sts2, _ = find_states(question, data["states"])
+        fac = data["facility"]
+        if sts2 and sts2[0] != "Malaysia":
+            hs = sorted(fac[fac["state"] == sts2[0]]["hospital"].unique())
+            return _reply(T(f"**{sts2[0]}** has **{len(hs)}** government blood bank{'s' if len(hs) != 1 else ''} in the dataset: " + ", ".join(hs) + ".",
+                            f"**{sts2[0]}** ada **{len(hs)}** bank darah kerajaan dalam set data: " + ", ".join(hs) + "."),
+                          source=SOURCE_FACILITY, value=f"{len(hs)} blood banks", field=f"unique hospital, state = {sts2[0]}")
+        h = fac["hospital"].nunique()
+        return _reply(T(f"The dataset has **{h} government blood banks** (hospitals and the National Blood Centre).",
+                        f"Set data ini ada **{h} bank darah kerajaan** (hospital dan Pusat Darah Negara)."),
+                      source=SOURCE_FACILITY, value=f"{h} blood banks", field="unique hospital")
+    if re.search(r"\b(seconds|saat)\b", t) and donate:
+        y = find_years(question)
+        secs, total = seconds_per_donation(data, y[0] if y else full)
+        return _reply(T(f"In **{y[0] if y else full}**, someone in Malaysia donated blood about **every {secs:.1f} seconds** ({total:,} donations in the year).",
+                        f"Pada **{y[0] if y else full}**, seseorang di Malaysia menderma darah kira-kira **setiap {secs:.1f} saat** ({total:,} derma setahun)."),
+                      source=SOURCE_DONATIONS, value=f"{secs:.1f} s", field="seconds in year ÷ total donations")
+    if re.search(r"\b(per day|a day|each day|daily average|average daily|setiap hari|sehari|sehari-hari|purata harian)\b", t) and donate:
+        y = find_years(question)
+        year = y[0] if y else full
+        sts, _ = find_states(question, data["states"])
+        place = sts[0] if sts else "Malaysia"
+        d_ = data["donations"]
+        rows_ = d_[(d_["state"] == place) & (d_["year"] == year)]
+        avg = rows_["daily"].mean()
+        return _reply(T(f"In **{year}**, **{place}** had about **{avg:,.0f}** blood donations **per day** on average ({rows_['daily'].sum():,} in the year).",
+                        f"Pada **{year}**, **{place}** mencatat purata kira-kira **{avg:,.0f}** derma darah **sehari** ({rows_['daily'].sum():,} setahun)."),
+                      source=SOURCE_DONATIONS, value=f"{avg:,.0f} per day", field=f"mean of daily, state = {place}, year = {year}")
+    fest = None
+    if re.search(r"(raya|aidilfitri|lebaran|eid)", t):
+        fest = "Hari Raya Aidilfitri"
+    elif re.search(r"(chinese new year|\bcny\b|tahun baru cina|imlek)", t):
+        fest = "Chinese New Year"
+    elif re.search(r"(deepavali|diwali)", t):
+        fest = "Deepavali"
+    if fest and (donate or re.search(r"\b(up|down|naik|turun)\b", t)):
+        fe = festive_effect(data, fest)
+        if len(fe):
+            avg = fe["change %"].mean()
+            down = avg < 0
+            yesno = ""
+            if re.search(r"\b(up or down|naik atau turun|go up|go down|naik|turun)\b", t):
+                yesno = T("**Down.** " if down else "**Up.** ", "**Turun.** " if down else "**Naik.** ")
+            return _reply(yesno + T(f"On the first day of **{fest}**, blood donations go **{'down' if down else 'up'}**: on average **{abs(avg):.0f}% {'lower' if down else 'higher'}** "
+                                    f"than a normal day ({fe['year'].min()}–{fe['year'].max()}). Blood banks need donors before and after the holiday!",
+                                    f"Pada hari pertama **{fest}**, derma darah **{'turun' if down else 'naik'}**: secara purata **{abs(avg):.0f}% {'lebih rendah' if down else 'lebih tinggi'}** "
+                                    f"daripada hari biasa ({fe['year'].min()}–{fe['year'].max()}). Bank darah perlukan penderma sebelum dan selepas cuti!"),
+                          source=SOURCE_DONATIONS, value=f"{avg:+.0f}% on the day", field="festival day vs median of 2 weeks around it",
+                          rows=fe.drop(columns=["date"]).round(1))
+
+    # data questions in everyday words
+    nat = data["donations"][data["donations"]["state"] == "Malaysia"]
+    if re.search(r"\b(today|hari ini|yesterday|semalam|latest|terkini|this week|minggu ini|recent|baru-baru ini)\b", t) and (donate or "how many" in t or "berapa" in t):
+        last = nat.loc[nat["date"].idxmax()]
+        return _reply(T(f"The latest day in the data is **{last['date']:%d %b %Y}**: **{last['daily']:,}** blood donations across Malaysia. "
+                        "The KKM data is updated daily, so today's number appears tomorrow.",
+                        f"Hari terkini dalam data ialah **{last['date']:%d %b %Y}**: **{last['daily']:,}** derma darah di seluruh Malaysia. "
+                        "Data KKM dikemas kini setiap hari, jadi nombor hari ini akan muncul esok."),
+                      source=SOURCE_DONATIONS, value=f"{last['daily']:,}", field="daily (latest date), state = Malaysia")
+    sts, _ = find_states(re.sub(r"\b(kedua|ketiga)\b", " ", question, flags=re.I), data["states"])
+    place = sts[0] if sts else "Malaysia"
+    pl = data["donations"][data["donations"]["state"] == place]
+    # a specific month: "donations in KL in March 2025"
+    mon = None
+    for i_, (en_, ms_) in enumerate(zip(MONTHS_EN, MONTHS_MS)):
+        e_, m_ = en_.lower(), ms_.lower()
+        if e_ in ("may",) or m_ in ("mei", "mac", "jun"):
+            hit = re.search(r"\b(in|bulan|pada|during|month of)\s+(" + e_ + "|" + m_ + r")\b", t) or re.search(r"\b(" + e_ + "|" + m_ + r")\s+(19|20)\d{2}\b", t)
+        else:
+            hit = re.search(r"\b(" + e_ + "|" + m_ + r")\b", t)
+        if hit:
+            mon = i_ + 1
+    if mon and re.search(r"\b(how many|berapa|donations?|derma|total|jumlah)\b", t) and not re.search(r"\b(which|mana|most|least|paling)\b", t):
+        y = find_years(question)
+        year = y[0] if y else full
+        v_ = pl[(pl["year"] == year) & (pl["date"].dt.month == mon)]["daily"].sum()
+        if v_:
+            nm = MONTHS_MS[mon - 1] if bm else MONTHS_EN[mon - 1]
+            return _reply(T(f"**{place}** recorded **{v_:,}** blood donations in **{nm} {year}**.",
+                            f"**{place}** mencatat **{v_:,}** derma darah pada **{nm} {year}**."),
+                          source=SOURCE_DONATIONS, value=f"{v_:,}", field=f"sum of daily, state = {place}, {MONTHS_EN[mon - 1]} {year}")
+    # which YEAR had the most / least
+    if re.search(r"\b(which year|what year|tahun (mana|apa|bila)|record year|best year|worst year|tahun rekod)\b", t):
+        yr = pl[pl["year"] <= full].groupby("year")["daily"].sum()
+        low = re.search(r"\b(least|fewest|lowest|worst|paling (sedikit|rendah|kurang)|terendah)\b", t)
+        k_ = int(yr.idxmin() if low else yr.idxmax())
+        tbl = yr.rename("value").reset_index().rename(columns={"year": "state"}); tbl["state"] = tbl["state"].astype(str)
+        return _reply(T(f"For **{place}**, the year with the **{'fewest' if low else 'most'}** blood donations was **{k_}** ({yr[k_]:,} donations, {FIRST_YEAR}–{full}).",
+                        f"Bagi **{place}**, tahun dengan derma darah **{'paling sedikit' if low else 'paling banyak'}** ialah **{k_}** ({yr[k_]:,} derma, {FIRST_YEAR}–{full})."),
+                      source=SOURCE_DONATIONS, value=f"{k_}: {yr[k_]:,}", field=f"sum of daily per year, state = {place}",
+                      chart=bar_chart(tbl, [str(k_)], T(f"Blood donations per year, {place}", f"Derma darah setiap tahun, {place}"), "donations"), rows=tbl)
+    # the single busiest day ever
+    if re.search(r"\b(ever|pernah|of all time|sepanjang masa|record)\b", t) and re.search(r"\b(day|hari)\b", t):
+        best = pl.loc[pl["daily"].idxmax()]
+        return _reply(T(f"The busiest single day ever for **{place}** was **{best['date']:%d %B %Y}**, with **{best['daily']:,}** donations in one day.",
+                        f"Hari paling sibuk pernah direkodkan bagi **{place}** ialah **{best['date']:%d/%m/%Y}**, dengan **{best['daily']:,}** derma dalam sehari."),
+                      source=SOURCE_DONATIONS, value=f"{best['daily']:,}", field=f"max of daily, state = {place}")
+    if re.search(r"\b(month|bulan)\b", t) and re.search(r"\b(most|busiest|highest|paling|banyak|tertinggi|least|fewest|lowest|quiet|sunyi|sedikit|rendah|terendah)\b", t):
+        y = find_years(question)
+        year = y[0] if y else full
+        m = pl[pl["year"] == year].assign(m=lambda x: x["date"].dt.month).groupby("m")["daily"].sum()
+        if len(m):
+            low = re.search(r"\b(least|fewest|lowest|quiet|sunyi|sedikit|rendah|terendah)\b", t)
+            k = int(m.idxmin() if low else m.idxmax())
+            name = MONTHS_MS[k - 1] if bm else MONTHS_EN[k - 1]
+            tbl = pd.DataFrame({"state": [MONTHS_EN[i - 1][:3] for i in m.index], "value": m.values})
+            return _reply(T(f"In **{year}**, the month with the **{'fewest' if low else 'most'}** blood donations in {place} was **{name}** ({m[k]:,} donations).",
+                            f"Pada **{year}**, bulan dengan derma darah **{'paling sedikit' if low else 'paling banyak'}** di {place} ialah **{name}** ({m[k]:,} derma)."),
+                          source=SOURCE_DONATIONS, value=f"{name}: {m[k]:,}", field=f"sum of daily per month, year = {year}",
+                          chart=bar_chart(tbl, [MONTHS_EN[k - 1][:3]], T(f"Blood donations by month, {year}", f"Derma darah mengikut bulan, {year}"), "donations"), rows=tbl)
+    if re.search(r"\b(day of the week|which day|busiest day|hari apa|hari mana|best day|quietest day|weekday|weekend|hujung minggu)\b", t) or re.search(r"\bhari\b.*\b(paling|tertinggi|terendah)\b", t):
+        y = find_years(question)
+        year = y[0] if y else full
+        n = nat[nat["year"] == year].assign(w=lambda x: x["date"].dt.day_name())
+        wk = n.groupby("w")["daily"].mean().sort_values()
+        hi, lo = wk.index[-1], wk.index[0]
+        hn, ln = (DAYS_MS[hi], DAYS_MS[lo]) if bm else (hi, lo)
+        tbl = wk.rename("value").reset_index().rename(columns={"w": "state"})
+        if re.search(r"\b(lowest|least|fewest|quiet|quietest|sunyi|rendah|terendah|sedikit|kurang)\b", t):
+            return _reply(T(f"In **{year}**, **{ln}** was the quietest day of the week (about **{wk[lo]:,.0f}** donations on average); **{hn}** was the busiest (about **{wk[hi]:,.0f}**).",
+                            f"Pada **{year}**, hari **{ln}** paling sunyi (purata kira-kira **{wk[lo]:,.0f}** derma); hari **{hn}** paling sibuk (kira-kira **{wk[hi]:,.0f}**)."),
+                          source=SOURCE_DONATIONS, value=f"{lo}: {wk[lo]:,.0f} per day", field=f"mean of daily by weekday, year = {year}",
+                          chart=bar_chart(tbl, [lo], T(f"Average donations by day of the week, {year}", f"Purata derma mengikut hari, {year}"), "donations"), rows=tbl)
+        return _reply(T(f"In **{year}**, **{hn}** was the busiest day to donate (about **{wk[hi]:,.0f}** donations on average) and **{ln}** the quietest (about **{wk[lo]:,.0f}**). "
+                        f"Want a short queue? Go on a {ln}.",
+                        f"Pada **{year}**, hari **{hn}** paling sibuk (purata kira-kira **{wk[hi]:,.0f}** derma) dan hari **{ln}** paling sunyi (kira-kira **{wk[lo]:,.0f}**). "
+                        f"Mahu barisan pendek? Pergi pada hari {ln}."),
+                      source=SOURCE_DONATIONS, value=f"{hi}: {wk[hi]:,.0f} per day", field=f"mean of daily by weekday, year = {year}",
+                      chart=bar_chart(tbl, [hi], T(f"Average donations by day of the week, {year}", f"Purata derma mengikut hari, {year}"), "donations"), rows=tbl)
+    if re.search(r"\b(rarest|rare|jarang|least common|paling (sikit|kurang)|uncommon)\b", t) and re.search(r"\b(blood|darah|type|jenis)\b", t):
+        y = find_years(question)
+        year = y[0] if y else full
+        rows = nat[nat["year"] == year]
+        cols = {"A": "blood_a", "B": "blood_b", "O": "blood_o", "AB": "blood_ab"}
+        tot = pd.DataFrame({"state": [f"Type {k}" for k in cols], "value": [rows[c].sum() for c in cols.values()]})
+        tot["percent"] = tot["value"] / tot["value"].sum() * 100
+        lo = tot.sort_values("value").iloc[0]
+        return _reply(T(f"In **{year}**, the rarest blood type donated in Malaysia was **{lo['state']}**: only **{lo['percent']:.1f}%** of donations. "
+                        "If you are type AB, your donation is extra special!",
+                        f"Pada **{year}**, jenis darah paling jarang didermakan di Malaysia ialah **{lo['state'].replace('Type', 'jenis')}**: hanya **{lo['percent']:.1f}%** daripada derma. "
+                        "Jika anda jenis AB, derma anda sangat istimewa!"),
+                      source=SOURCE_DONATIONS, value=f"{lo['state']}: {lo['percent']:.1f}%", field=f"blood_a/b/o/ab, year = {year}",
+                      chart=bar_chart(tot[["state", "value"]], [lo["state"]], T(f"Donations by blood type, {year}", f"Derma mengikut jenis darah, {year}"), "donations"),
+                      rows=tot, goto=["type"])
+    return None
 
 
 def answer(question, data, context=None, lang="en", survey=None):
@@ -581,14 +834,19 @@ def answer(question, data, context=None, lang="en", survey=None):
                                           "Taip soalan tentang derma darah, contohnya: *Negeri mana paling banyak derma darah pada 2025?*"))
         return out
 
-    r = rule_answer(q, lang)               # basic donor rules first (age, weight, sleep, tattoo...)
+    r = rule_answer(q, lang) or faq_answer(q, data, lang)   # donor rules + everyday questions first
     if r:
         return r
     intent = detect_intent(q)
-    states, corrections = find_states(q, data["states"])
+    q_for_states = re.sub(r"\b(kedua|ketiga|keempat|kelima|keenam)\b", " ", q, flags=re.I)   # "kedua" is not Kedah
+    states, corrections = find_states(q_for_states, data["states"])
     years = find_years(q)
     metric = find_metric(q)
-    hospital_q = bool(re.search(r"\b(hospitals?|blood banks?|pusat darah|facilit(y|ies))\b", q.lower()))
+    hospital_q = bool(re.search(r"\b(hospitals?|blood banks?|bank darah|pusat darah|facilit(y|ies))\b", q.lower()))
+    where_q = bool(re.search(r"\b(where|di ?mana|mana (nak|boleh|untuk|tempat|satu)|tempat (derma|menderma|untuk derma)|lokasi|location|nearest|terdekat|nak derma|pergi derma)\b|^mana\b", q.lower())) and \
+        bool(re.search(_DONATE_WORDS, q.lower())) and intent not in ("compare", "trend")
+    if where_q:
+        hospital_q = True
 
     # --- Follow-up memory: "what about Johor?" reuses the last question's details
     if context and intent not in ("cause", "predict", "greet") and is_followup(q, intent, bool(states or years or metric or hospital_q)):
@@ -616,7 +874,7 @@ def answer(question, data, context=None, lang="en", survey=None):
                         "Hai! Saya **DarahBot**. Saya menjawab soalan tentang derma darah di Malaysia "
                         "menggunakan data rasmi KKM, dan saya sentiasa tunjukkan bukti. Cuba salah satu contoh soalan.")
         return out
-    if intent == "eligible":
+    if intent == "eligible" and not where_q:
         rules = check_eligibility(0, 0, 0, False, 0)
         out["text"] = t(
             "I can't see your health from the KKM dataset, but I can check the **5 basic donor rules** with you. "
@@ -712,6 +970,8 @@ def answer(question, data, context=None, lang="en", survey=None):
     if metric == "per_capita" and years and years[0] != 2020:
         out["notes"].append(t("Population figures are DOSM 2020 estimates, so per-capita rates for other years are approximate.",
                               "Angka penduduk ialah anggaran DOSM 2020, jadi kadar per kapita untuk tahun lain adalah anggaran."))
+    if not years and re.search(r"\b(last year|tahun lepas|tahun lalu|previous year)\b", q.lower()):
+        years = [data["latest_full_year"]]
     year = years[0] if years else data["latest_full_year"]
     if not years and intent not in ("trend",):
         out["notes"].append(t(f"No year given, so I used **{year}** (the latest complete year).",
@@ -734,6 +994,17 @@ def answer(question, data, context=None, lang="en", survey=None):
             out.update(kind="refuse", text=t(f"No hospital data for {where} in {year}.", f"Tiada data hospital untuk {where} pada {year}."))
             return out
         top = df.iloc[0]
+        if where_q:
+            names = ", ".join(f"**{h}**" for h in df["hospital"].head(5))
+            out["text"] = t(f"You can donate at these blood banks in **{where}** (busiest first, {year}): {names}. "
+                            "Mobile blood drives also visit malls, campuses and mosques, so watch for them near you.",
+                            f"Anda boleh menderma di bank darah ini di **{where}** (paling sibuk dahulu, {year}): {names}. "
+                            "Kempen derma darah bergerak juga datang ke pusat beli-belah, kampus dan masjid, jadi perhatikan berdekatan anda.")
+            chart_df = df[["hospital", "value"]].rename(columns={"hospital": "state"})
+            out.update(chart=bar_chart(chart_df, [top["hospital"]], t(f"Blood banks in {where}, {year}", f"Bank darah di {where}, {year}"), metric),
+                       rows=df, evidence={"value": f"{len(df)} blood banks", "field": col, "filters": f"year = {year}" + (f", state = {where}" if where != "Malaysia" else ""),
+                                          "unit": unit, "source": SOURCE_FACILITY})
+            return out
         out["text"] = t(f"In **{year}**{yn}, the blood bank that collected the most {label} in **{where}** was "
                         f"**{top['hospital']}** ({top['state']}): **{top['value']:,.0f}** {unit}.",
                         f"Pada **{year}**{yn}, bank darah yang mengumpul paling banyak {lab} di **{where}** ialah "
@@ -754,6 +1025,27 @@ def answer(question, data, context=None, lang="en", survey=None):
         totals["percent"] = totals["donations"] / totals["donations"].sum() * 100
         top = totals.sort_values("donations", ascending=False).iloc[0]
         n = f"{totals['donations'].sum():,.0f}"
+        ql = q.lower()
+        all_pct = ", ".join(f"{r_['blood type']} **{r_['percent']:.1f}%**" for _, r_ in totals.iterrows())
+        asked = {"blood_a": "A", "blood_b": "B", "blood_o": "O", "blood_ab": "AB"}.get(metric)
+        least = re.search(r"\b(least|lowest|fewest|rarest|rare|paling (sedikit|kurang|jarang)|terendah|tersedikit|jarang)\b", ql)
+        if asked or least:
+            row_ = totals[totals["blood type"] == asked].iloc[0] if asked else totals.sort_values("donations").iloc[0]
+            pre = ""
+            if asked and re.search(r"\b(more than half|over half|majority|lebih (dari|daripada)? ?separuh|melebihi separuh)\b", ql):
+                pre = t("**Yes.** " if row_["percent"] > 50 else "**No.** ", "**Ya.** " if row_["percent"] > 50 else "**Tidak.** ")
+            out["text"] = pre + t(f"In **{place}** in **{year}**{yn}, **type {row_['blood type']}** made up **{row_['percent']:.1f}%** of donations "
+                                  f"({row_['donations']:,.0f} of {n})" + (" — the least of all types." if least and not asked else ".") + f" All types: {all_pct}.",
+                                  f"Di **{place}** pada **{year}**{yn}, **jenis {row_['blood type']}** ialah **{row_['percent']:.1f}%** daripada derma "
+                                  f"({row_['donations']:,.0f} daripada {n})" + (", paling sedikit antara semua jenis." if least and not asked else ".") + f" Semua jenis: {all_pct}.")
+            fig = px.pie(totals, names="blood type", values="donations", hole=0.55,
+                         title=t(f"Blood types donated, {place} {year}", f"Jenis darah yang didermakan, {place} {year}"),
+                         color_discrete_sequence=[RED, PINK, WINE, BLUSH])
+            fig.update_traces(textinfo="label+percent")
+            out.update(chart=fig, rows=totals.round(1), evidence={
+                "value": f"{row_['percent']:.1f}% type {row_['blood type']}", "field": "blood_a, blood_b, blood_o, blood_ab",
+                "filters": f"state = {place}, year = {year}", "unit": "donations", "source": SOURCE_DONATIONS})
+            return out
         out["text"] = t(f"In **{place}** in **{year}**{yn}, the most common blood type donated was **type {top['blood type']}** "
                         f"({top['percent']:.1f}% of {n} donations with a recorded blood type).",
                         f"Di **{place}** pada **{year}**{yn}, jenis darah yang paling banyak didermakan ialah **jenis {top['blood type']}** "
@@ -799,10 +1091,28 @@ def answer(question, data, context=None, lang="en", survey=None):
                              "filters": f"state in [{a}, {b}], year = {year}", "unit": unit, "source": source})
         return out
 
+    if intent in ("trend", "rank") and re.search(r"\b(improved|grew|increased|rose|dropped|fell|decreased|declined|meningkat|naik|turun|menurun|merosot)\b.*\b(most|paling)\b|\b(most|paling)\b.*\b(improved|grew|increase|rise|drop|fall|decline|meningkat|naik|turun|menurun|merosot)\b", q.lower()) and not states:
+        y1, y2 = (min(years), max(years)) if len(years) >= 2 else ((years[0], data["latest_full_year"]) if years else (2019, data["latest_full_year"]))
+        df = yearly_values(data, metric, data["states"])
+        a_ = df[df.year == y1].set_index("state")["value"]; b_ = df[df.year == y2].set_index("state")["value"]
+        ch = ((b_ - a_) / a_ * 100).dropna().sort_values()
+        dropq = re.search(r"\b(dropped|fell|decreased|declined|turun|menurun|merosot|drop|fall|decline)\b", q.lower())
+        st_ = ch.index[0] if dropq else ch.index[-1]
+        tbl = ch.rename("value").reset_index()
+        out["text"] = t(f"From **{y1}** to **{y2}**, **{st_}** {'fell' if ch[st_] < 0 else 'grew'} the {'most' if True else ''} for {label}: **{ch[st_]:+.1f}%** "
+                        f"({fmt(a_[st_], metric)} → {fmt(b_[st_], metric)}).",
+                        f"Dari **{y1}** hingga **{y2}**, **{st_}** paling {'turun' if ch[st_] < 0 else 'meningkat'} bagi {lab}: **{ch[st_]:+.1f}%** "
+                        f"({fmt(a_[st_], metric)} → {fmt(b_[st_], metric)}).")
+        out.update(chart=bar_chart(tbl, [st_], t(f"Change in {label}, {y1} to {y2} (%)", f"Perubahan {lab}, {y1} hingga {y2} (%)"), "genz_share"),
+                   rows=tbl.round(1), evidence={"value": f"{st_}: {ch[st_]:+.1f}%", "field": METRICS[metric][1] or "computed",
+                                                "filters": f"{y1} vs {y2}, all states", "unit": "% change", "source": source})
+        return out
     if intent == "trend":
         place = states or ["Malaysia"]
         if len(years) >= 2:
             y1, y2 = min(years), max(years)
+        elif years and re.match(r"\s*(did|do|does|was|were|adakah)\b", q.lower()):
+            y1, y2 = years[0] - 1, years[0]           # "did donations drop in 2020?" -> 2019 vs 2020
         elif years and years[0] < data["latest_full_year"]:
             y1, y2 = years[0], data["latest_full_year"]
         else:
@@ -829,6 +1139,12 @@ def answer(question, data, context=None, lang="en", survey=None):
                                              f"Saya tiada {lab} untuk {', '.join(place)} antara {y1} dan {y2}."))
             return out
         out["text"] = "\n\n".join(lines) + year_note(data, y2, lang)
+        asked_up = re.search(r"\b(up|naik|increase|increased|rise|rose|grow|grew|more|meningkat|bertambah)\b", q.lower())
+        asked_down = re.search(r"\b(down|turun|decrease|decreased|fall|fell|drop|dropped|less|fewer|menurun|berkurang)\b", q.lower())
+        if re.match(r"\s*(did|do|does|is|was|were|has|have|adakah|adakan|betul ke|ke)\b", q.lower()) and (asked_up or asked_down) and len(place) == 1:
+            went_up = "rose" in lines[0] or "naik" in lines[0]
+            yes = went_up if asked_up else not went_up
+            out["text"] = t("**Yes.** " if yes else "**No.** ", "**Ya.** " if yes else "**Tidak.** ") + out["text"]
         out.update(chart=line_chart(df, f"{cap(lab)}, {y1}–{y2}", metric), rows=df,
                    evidence={"value": "; ".join(plain), "field": METRICS[metric][1] or "computed",
                              "filters": f"state in {place}, {y1} ≤ year ≤ {y2}", "unit": unit, "source": source})
@@ -839,6 +1155,20 @@ def answer(question, data, context=None, lang="en", survey=None):
         df = rank(data, metric, year, lowest=lowest)
         if df.empty:
             out.update(kind="refuse", text=t(f"No {label} recorded for {year}.", f"Tiada {lab} direkodkan untuk {year}."))
+            return out
+        nth = {"second": 2, "2nd": 2, "kedua": 2, "ke-2": 2, "third": 3, "3rd": 3, "ketiga": 3, "ke-3": 3,
+               "fourth": 4, "4th": 4, "keempat": 4, "fifth": 5, "5th": 5, "kelima": 5}
+        k = next((v for w, v in nth.items() if re.search(r"(?<![\w-])" + re.escape(w) + r"(?![\w-])", q.lower())), 1)
+        if k > 1 and len(df) >= k:
+            top = df.iloc[k - 1]
+            pos_en = {2: "second", 3: "third", 4: "fourth", 5: "fifth"}[k]
+            out["text"] = t(f"In **{year}**{yn}, **{top['state']}** came **{pos_en} {'lowest' if lowest else 'highest'}** for {label}: "
+                            f"**{fmt(top['value'], metric)}** {unit}, after {', '.join(df['state'].head(k - 1))}.",
+                            f"Pada **{year}**{yn}, **{top['state']}** di tempat **ke-{k}** ({'terendah' if lowest else 'tertinggi'}) bagi {lab}: "
+                            f"**{fmt(top['value'], metric)}** {un}, selepas {', '.join(df['state'].head(k - 1))}.")
+            out.update(chart=bar_chart(df, [top["state"]], t(f"{cap(label)} by state, {year}", f"{cap(lab)} mengikut negeri, {year}"), metric), rows=df,
+                       evidence={"value": f"#{k} {top['state']}: {fmt(top['value'], metric)}", "field": METRICS[metric][1] or "computed",
+                                 "filters": f"year = {year}, ranked {len(df)} states", "unit": unit, "source": source})
             return out
         top = df.iloc[0]
         out["text"] = t(f"In **{year}**{yn}, **{top['state']}** had the **{'lowest' if lowest else 'highest'}** {label}: "
@@ -872,6 +1202,8 @@ def answer(question, data, context=None, lang="en", survey=None):
 
     # --- LOOKUP (default) -----------------------------------------------------
     place = states[0] if states else None
+    if place is None and (years or re.search(r"\b(how many|berapa|ramai|jumlah|total|number|bilangan|count|donations?|derma)\b", q.lower())):
+        place = "Malaysia"                     # "donations in 2025", "berapa ramai derma tahun lepas" -> whole country
     if place is None:
         out.update(kind="refuse", text=t(
             "I'm not sure how to answer that from this dataset. I can answer questions like:\n"
@@ -895,6 +1227,15 @@ def answer(question, data, context=None, lang="en", survey=None):
         return out
     nat = lookup(data, metric, "Malaysia", year) if place != "Malaysia" else None
     pct = f"{v / nat * 100:.1f}%" if nat and unit not in ("%", "per 1,000 adults") else None
+    if metric in ("mobile", "students", "regular") and re.search(r"(%|\bpercent|\bpercentage|\bperatus|\bshare\b|\bproportion|\bbahagian)", q.lower()):
+        tot_ = lookup(data, "donations", place, year)
+        if tot_:
+            sh_ = v / tot_ * 100
+            out["text"] = t(f"In **{year}**{yn}, **{sh_:.1f}%** of blood donations in **{place}** were {label} ({fmt(v, metric)} of {tot_:,.0f}).",
+                            f"Pada **{year}**{yn}, **{sh_:.1f}%** derma darah di **{place}** ialah {lab} ({fmt(v, metric)} daripada {tot_:,.0f}).")
+            out["evidence"] = {"value": f"{sh_:.1f}%", "field": f"{METRICS[metric][1]} ÷ daily", "filters": f"state = {place}, year = {year}",
+                               "unit": "%", "source": source}
+            return out
     out["text"] = t(f"**{place}** recorded **{fmt(v, metric)}** {label} in **{year}**{yn}." + (f" That's **{pct}** of Malaysia's total." if pct else ""),
                     f"**{place}** mencatat **{fmt(v, metric)}** {lab} pada **{year}**{yn}." + (f" Iaitu **{pct}** daripada jumlah Malaysia." if pct else ""))
     df = yearly_values(data, metric, [place])
