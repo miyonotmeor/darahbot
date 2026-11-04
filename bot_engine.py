@@ -808,6 +808,42 @@ def faq_answer(question, data, lang="en"):
     return None
 
 
+# ---------------------------------------------------------------------------
+# QUIZ: general info only. Never reveal which questions are asked or their answers.
+# ---------------------------------------------------------------------------
+QUIZ_N, QUIZ_PRIZE_AT = 6, 5
+
+
+def quiz_answer(question, lang="en"):
+    t = question.lower()
+    if not re.search(r"\b(quiz|kuiz|prize|hadiah|present)\b", t):
+        return None
+    T = (lambda en, ms: ms if lang == "bm" else en)
+    asks_content = re.search(r"\b(what (are|is) the (quiz )?(questions?|answers?)|which questions|list (of )?(the )?questions|"
+                             r"answers? (to|for|of)|the answers?|jawapan|soalan (apa|mana)|apa soalan|senarai soalan|bagi soalan|"
+                             r"tell me the questions?|show me the questions?|question \d|soalan (no\.? ?)?\d|bocor|leak|cheat|tipu|spoiler|hint)\b", t)
+    if asks_content:
+        return {"text": T("Nice try! 😄 I can't tell you the quiz questions or their answers, that would spoil the game for everyone. "
+                          "But you can still ask me anything about blood donation in Malaysia to warm up. Good luck!",
+                          "Cubaan yang bagus! 😄 Saya tidak boleh beritahu soalan kuiz atau jawapannya, nanti tak adil untuk semua. "
+                          "Tetapi anda masih boleh tanya apa-apa tentang derma darah di Malaysia sebagai latihan. Semoga berjaya!"),
+                "kind": "ok", "chart": None, "rows": None, "notes": [], "context": None, "goto": ["quiz"],
+                "evidence": {"value": "-", "field": "quiz rules", "filters": "none", "unit": "-", "source": "DarahBot quiz rules"}}
+    return {"text": T(f"**About the DarahBot quiz:**\n- **{QUIZ_N} questions** per round, picked at random from a bank of **48**, so everyone gets a different set.\n"
+                      f"- Get **{QUIZ_PRIZE_AT} or more** right to **win a prize** (while prizes last). Close answers count, e.g. 590k for 589,866.\n"
+                      "- **No time limit**: take your time. Each question must be answered before the next one.\n"
+                      "- First **register with your email**: if you answered our survey before you go straight in; if not, answer the 2-minute survey.\n"
+                      "- After the quiz, take a **memory photo** (winners take 2: a framed photo and a photo booth strip) and download it with a QR code.",
+                      f"**Tentang kuiz DarahBot:**\n- **{QUIZ_N} soalan** setiap pusingan, dipilih secara rawak daripada **48** soalan, jadi setiap orang dapat set berbeza.\n"
+                      f"- Betul **{QUIZ_PRIZE_AT} atau lebih** untuk **menang hadiah** (selagi ada). Jawapan hampir betul dikira, contohnya 590k untuk 589,866.\n"
+                      "- **Tiada had masa**: jawab dengan tenang. Setiap soalan perlu dijawab sebelum ke soalan seterusnya.\n"
+                      "- **Daftar dengan e-mel** dahulu: jika pernah menjawab tinjauan kami, terus masuk; jika belum, jawab tinjauan 2 minit.\n"
+                      "- Selepas kuiz, ambil **gambar kenangan** (pemenang ambil 2: gambar berbingkai dan jalur photo booth) dan muat turun dengan kod QR."),
+            "kind": "ok", "chart": None, "rows": None, "notes": [], "context": None, "goto": ["quiz"],
+            "evidence": {"value": f"{QUIZ_N} questions, {QUIZ_PRIZE_AT} to win", "field": "quiz rules", "filters": "none", "unit": "-",
+                         "source": "DarahBot quiz rules"}}
+
+
 def answer(question, data, context=None, lang="en", survey=None):
     """
     Returns a dictionary:
@@ -834,7 +870,7 @@ def answer(question, data, context=None, lang="en", survey=None):
                                           "Taip soalan tentang derma darah, contohnya: *Negeri mana paling banyak derma darah pada 2025?*"))
         return out
 
-    r = rule_answer(q, lang) or faq_answer(q, data, lang)   # donor rules + everyday questions first
+    r = quiz_answer(q, lang) or rule_answer(q, lang) or faq_answer(q, data, lang)   # donor rules + everyday questions first
     if r:
         return r
     intent = detect_intent(q)

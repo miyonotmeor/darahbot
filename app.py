@@ -1411,7 +1411,7 @@ if show("story"):
         st.caption("The data shows what changed. It cannot tell us why (e.g. COVID-19, campus campaigns). · Data menunjukkan apa yang berubah, bukan sebabnya.")
 
 # ================================================================ QUIZ & PRIZE
-QUIZ_N, PRIZE_AT = 6, 5
+QUIZ_N, PRIZE_AT = bot.QUIZ_N, bot.QUIZ_PRIZE_AT      # set in bot_engine.py so the chatbot says the same
 
 
 @st.cache_resource
