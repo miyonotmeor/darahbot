@@ -344,6 +344,12 @@ svg.logo { display:block; filter: drop-shadow(0 8px 14px rgba(176,18,42,.35)); }
 [data-testid="stSidebar"][aria-expanded="false"] { opacity:.0; }
 [data-testid="stSidebarUserContent"] > div > div { animation: fadeup .45s both; }
 div[role="dialog"] { animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
+/* intro tour: centred on screen, page behind is blurred until the tour is finished or skipped */
+[data-testid="stDialog"]:has(.tour) { backdrop-filter: blur(14px) saturate(.85); -webkit-backdrop-filter: blur(14px) saturate(.85);
+  background: rgba(70, 12, 22, .32) !important; animation: tourfade .35s ease both; }
+[data-testid="stDialog"]:has(.tour) > div { margin: auto !important; box-shadow: 0 30px 80px rgba(60, 0, 12, .35);
+  animation: pop .38s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes tourfade { from { backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); background: rgba(70,12,22,0); } }
 /* ---- every section pops in smoothly when its button is pressed (computer & iPad tabs, phone menu, quiz) ---- */
 @keyframes secin { from { opacity:0; transform: translateY(18px) scale(.985); filter: blur(3px); } to { opacity:1; transform:none; filter:none; } }
 .sec-anim, [class*="st-key-secwrap"] { animation: secin .5s cubic-bezier(.2,.8,.2,1) both; }
